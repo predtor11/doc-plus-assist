@@ -4,21 +4,31 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Stethoscope, User, Lock } from 'lucide-react';
+import { Stethoscope, User, Lock, Mail } from 'lucide-react';
 
 const LoginPage = () => {
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const { login, isLoading } = useAuth();
+  const [signUpData, setSignUpData] = useState({
+    email: '',
+    password: '',
+    confirmPassword: '',
+    username: '',
+    name: '',
+    role: 'patient' as 'doctor' | 'patient'
+  });
+  const { login, signUp, isLoading } = useAuth();
   const { toast } = useToast();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const success = await login(username, password);
+    const result = await login(email, password);
     
-    if (success) {
+    if (result.success) {
       toast({
         title: "Login successful",
         description: "Welcome to Doc+",
@@ -26,7 +36,39 @@ const LoginPage = () => {
     } else {
       toast({
         title: "Login failed",
-        description: "Invalid credentials. Try: dr.smith/password123 or patient1/password123",
+        description: result.error || "Invalid credentials",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleSignUp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (signUpData.password !== signUpData.confirmPassword) {
+      toast({
+        title: "Password mismatch",
+        description: "Passwords do not match",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const result = await signUp(signUpData.email, signUpData.password, {
+      username: signUpData.username,
+      role: signUpData.role,
+      name: signUpData.name
+    });
+    
+    if (result.success) {
+      toast({
+        title: "Account created successfully",
+        description: "Please check your email to verify your account",
+      });
+    } else {
+      toast({
+        title: "Sign up failed",
+        description: result.error || "Failed to create account",
         variant: "destructive",
       });
     }
@@ -48,63 +90,178 @@ const LoginPage = () => {
         </div>
 
         <Card className="shadow-lg">
-          <CardHeader className="text-center">
-            <CardTitle>Sign In</CardTitle>
-            <CardDescription>
-              Access your medical dashboard
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="username">Username</Label>
-                <div className="relative">
-                  <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="username"
-                    type="text"
-                    placeholder="Enter your username"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    className="pl-10"
-                    required
-                  />
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="password"
-                    type="password"
-                    placeholder="Enter your password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="pl-10"
-                    required
-                  />
-                </div>
-              </div>
-              
-              <Button 
-                type="submit" 
-                className="w-full bg-gradient-primary hover:opacity-90"
-                disabled={isLoading}
-              >
-                {isLoading ? 'Signing in...' : 'Sign In'}
-              </Button>
-            </form>
+          <Tabs defaultValue="login" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="login">Sign In</TabsTrigger>
+              <TabsTrigger value="signup">Sign Up</TabsTrigger>
+            </TabsList>
             
-            <div className="mt-6 p-4 bg-accent rounded-lg">
-              <p className="text-sm font-medium text-accent-foreground mb-2">Demo Accounts:</p>
-              <div className="text-sm text-muted-foreground space-y-1">
-                <p><strong>Doctor:</strong> dr.smith / password123</p>
-                <p><strong>Patient:</strong> patient1 / password123</p>
-              </div>
-            </div>
-          </CardContent>
+            <TabsContent value="login">
+              <CardHeader className="text-center">
+                <CardTitle>Sign In</CardTitle>
+                <CardDescription>
+                  Access your medical dashboard
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleLogin} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="email"
+                        type="email"
+                        placeholder="Enter your email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="pl-10"
+                        required
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="password">Password</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="password"
+                        type="password"
+                        placeholder="Enter your password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="pl-10"
+                        required
+                      />
+                    </div>
+                  </div>
+                  
+                  <Button 
+                    type="submit" 
+                    className="w-full bg-gradient-primary hover:opacity-90"
+                    disabled={isLoading}
+                  >
+                    {isLoading ? 'Signing in...' : 'Sign In'}
+                  </Button>
+                </form>
+              </CardContent>
+            </TabsContent>
+
+            <TabsContent value="signup">
+              <CardHeader className="text-center">
+                <CardTitle>Create Account</CardTitle>
+                <CardDescription>
+                  Join Doc+ as a doctor or patient
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleSignUp} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-email">Email</Label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="signup-email"
+                        type="email"
+                        placeholder="Enter your email"
+                        value={signUpData.email}
+                        onChange={(e) => setSignUpData(prev => ({ ...prev, email: e.target.value }))}
+                        className="pl-10"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="username">Username</Label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="username"
+                        type="text"
+                        placeholder="Choose a username"
+                        value={signUpData.username}
+                        onChange={(e) => setSignUpData(prev => ({ ...prev, username: e.target.value }))}
+                        className="pl-10"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Full Name</Label>
+                    <Input
+                      id="name"
+                      type="text"
+                      placeholder="Enter your full name"
+                      value={signUpData.name}
+                      onChange={(e) => setSignUpData(prev => ({ ...prev, name: e.target.value }))}
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="role">Role</Label>
+                    <Select 
+                      value={signUpData.role} 
+                      onValueChange={(value: 'doctor' | 'patient') => 
+                        setSignUpData(prev => ({ ...prev, role: value }))
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select your role" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="patient">Patient</SelectItem>
+                        <SelectItem value="doctor">Doctor</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-password">Password</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="signup-password"
+                        type="password"
+                        placeholder="Create a password"
+                        value={signUpData.password}
+                        onChange={(e) => setSignUpData(prev => ({ ...prev, password: e.target.value }))}
+                        className="pl-10"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="confirm-password">Confirm Password</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="confirm-password"
+                        type="password"
+                        placeholder="Confirm your password"
+                        value={signUpData.confirmPassword}
+                        onChange={(e) => setSignUpData(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                        className="pl-10"
+                        required
+                      />
+                    </div>
+                  </div>
+                  
+                  <Button 
+                    type="submit" 
+                    className="w-full bg-gradient-primary hover:opacity-90"
+                    disabled={isLoading}
+                  >
+                    {isLoading ? 'Creating Account...' : 'Create Account'}
+                  </Button>
+                </form>
+              </CardContent>
+            </TabsContent>
+          </Tabs>
         </Card>
       </div>
     </div>

@@ -14,7 +14,148 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      conversations: {
+        Row: {
+          chat_type: string
+          created_at: string
+          id: string
+          is_ai_message: boolean | null
+          message: string
+          recipient_id: string | null
+          sender_id: string | null
+        }
+        Insert: {
+          chat_type: string
+          created_at?: string
+          id?: string
+          is_ai_message?: boolean | null
+          message: string
+          recipient_id?: string | null
+          sender_id?: string | null
+        }
+        Update: {
+          chat_type?: string
+          created_at?: string
+          id?: string
+          is_ai_message?: boolean | null
+          message?: string
+          recipient_id?: string | null
+          sender_id?: string | null
+        }
+        Relationships: []
+      }
+      patients: {
+        Row: {
+          age: number | null
+          assigned_doctor_id: string | null
+          created_at: string
+          email: string | null
+          gender: string | null
+          id: string
+          medical_history: string | null
+          name: string
+          phone: string | null
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          age?: number | null
+          assigned_doctor_id?: string | null
+          created_at?: string
+          email?: string | null
+          gender?: string | null
+          id?: string
+          medical_history?: string | null
+          name: string
+          phone?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          age?: number | null
+          assigned_doctor_id?: string | null
+          created_at?: string
+          email?: string | null
+          gender?: string | null
+          id?: string
+          medical_history?: string | null
+          name?: string
+          phone?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "patients_assigned_doctor_id_fkey"
+            columns: ["assigned_doctor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          role: string
+          updated_at: string
+          user_id: string
+          username: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          role: string
+          updated_at?: string
+          user_id: string
+          username: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          role?: string
+          updated_at?: string
+          user_id?: string
+          username?: string
+        }
+        Relationships: []
+      }
+      symptoms: {
+        Row: {
+          id: string
+          patient_id: string | null
+          reported_at: string
+          severity: number | null
+          symptom: string
+        }
+        Insert: {
+          id?: string
+          patient_id?: string | null
+          reported_at?: string
+          severity?: number | null
+          symptom: string
+        }
+        Update: {
+          id?: string
+          patient_id?: string | null
+          reported_at?: string
+          severity?: number | null
+          symptom?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "symptoms_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

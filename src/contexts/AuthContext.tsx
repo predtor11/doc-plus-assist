@@ -1,68 +1,130 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { User, Session } from '@supabase/supabase-js';
 
-interface User {
+interface Profile {
   id: string;
+  user_id: string;
   username: string;
   role: 'doctor' | 'patient';
   name: string;
-  assignedDoctor?: string;
+}
+
+interface AuthUser extends Profile {
+  email?: string;
 }
 
 interface AuthContextType {
-  user: User | null;
-  login: (username: string, password: string) => Promise<boolean>;
-  logout: () => void;
+  user: AuthUser | null;
+  session: Session | null;
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  signUp: (email: string, password: string, userData: { username: string; role: 'doctor' | 'patient'; name: string }) => Promise<{ success: boolean; error?: string }>;
+  logout: () => Promise<void>;
   isLoading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Mock users data (in real app this would come from users.json)
-const mockUsers: User[] = [
-  { id: '1', username: 'dr.smith', role: 'doctor', name: 'Dr. Sarah Smith' },
-  { id: '2', username: 'dr.jones', role: 'doctor', name: 'Dr. Michael Jones' },
-  { id: '3', username: 'patient1', role: 'patient', name: 'John Doe', assignedDoctor: '1' },
-  { id: '4', username: 'patient2', role: 'patient', name: 'Jane Wilson', assignedDoctor: '1' },
-  { id: '5', username: 'patient3', role: 'patient', name: 'Robert Chen', assignedDoctor: '2' },
-];
-
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check if user is already logged in (localStorage simulation)
-    const savedUser = localStorage.getItem('docplus_user');
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
-    }
-    setIsLoading(false);
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        setSession(session);
+        
+        if (session?.user) {
+          // Fetch user profile
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('user_id', session.user.id)
+            .single();
+          
+          if (profile) {
+            setUser({
+              ...profile,
+              role: profile.role as 'doctor' | 'patient',
+              email: session.user.email
+            });
+          }
+        } else {
+          setUser(null);
+        }
+        
+        setIsLoading(false);
+      }
+    );
+
+    // Check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      if (session?.user) {
+        // Fetch user profile
+        supabase
+          .from('profiles')
+          .select('*')
+          .eq('user_id', session.user.id)
+          .single()
+          .then(({ data: profile }) => {
+            if (profile) {
+              setUser({
+                ...profile,
+                role: profile.role as 'doctor' | 'patient',
+                email: session.user.email
+              });
+            }
+            setIsLoading(false);
+          });
+      } else {
+        setIsLoading(false);
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  const login = async (username: string, password: string): Promise<boolean> => {
-    setIsLoading(true);
-    
-    // Mock authentication - in real app this would call /login endpoint
-    const foundUser = mockUsers.find(u => u.username === username);
-    
-    if (foundUser && password === 'password123') {
-      setUser(foundUser);
-      localStorage.setItem('docplus_user', JSON.stringify(foundUser));
-      setIsLoading(false);
-      return true;
+  const login = async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      return { success: false, error: error.message };
     }
-    
-    setIsLoading(false);
-    return false;
+
+    return { success: true };
   };
 
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem('docplus_user');
+  const signUp = async (email: string, password: string, userData: { username: string; role: 'doctor' | 'patient'; name: string }) => {
+    const redirectUrl = `${window.location.origin}/`;
+    
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: redirectUrl,
+        data: userData
+      }
+    });
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  };
+
+  const logout = async () => {
+    await supabase.auth.signOut();
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, session, login, signUp, logout, isLoading }}>
       {children}
     </AuthContext.Provider>
   );
