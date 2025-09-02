@@ -6,110 +6,110 @@
 
 @layer base {
   :root {
-    /* Base colors */
-    --background: 248 250 252; /* slate-50 */
-    --foreground: 215 25% 27%; /* slate-700 */
+    /* Modern Medical Base - Clean whites and soft grays */
+    --background: 0 0% 99%; /* Pure white */
+    --foreground: 215 25% 15%; /* Deep charcoal */
 
-    /* Card colors */
-    --card: 0 0% 100%; /* white */
-    --card-foreground: 215 25% 27%; /* slate-700 */
+    /* Card colors - Crisp white with subtle elevation */
+    --card: 0 0% 100%; /* Pure white */
+    --card-foreground: 215 25% 15%; /* Deep charcoal */
 
     /* Popover colors */
-    --popover: 0 0% 100%; /* white */
-    --popover-foreground: 215 25% 27%; /* slate-700 */
+    --popover: 0 0% 100%; /* Pure white */
+    --popover-foreground: 215 25% 15%; /* Deep charcoal */
 
-    /* Medical primary - Professional blue */
-    --primary: 217 91% 60%; /* blue-500 */
-    --primary-foreground: 0 0% 98%; /* white */
-    --primary-hover: 217 91% 55%; /* blue-600 */
+    /* Medical primary - Modern teal blue */
+    --primary: 194 74% 56%; /* Modern teal-blue */
+    --primary-foreground: 0 0% 100%; /* Pure white */
+    --primary-hover: 194 74% 51%; /* Darker teal-blue */
 
-    /* Medical secondary - Calming green */
-    --secondary: 158 64% 52%; /* emerald-500 */
-    --secondary-foreground: 0 0% 98%; /* white */
-    --secondary-hover: 158 64% 47%; /* emerald-600 */
+    /* Medical secondary - Soft mint green */
+    --secondary: 168 76% 42%; /* Mint green */
+    --secondary-foreground: 0 0% 100%; /* Pure white */
+    --secondary-hover: 168 76% 37%; /* Darker mint */
 
-    /* Muted colors */
-    --muted: 210 40% 96%; /* slate-100 */
-    --muted-foreground: 215 16% 47%; /* slate-600 */
+    /* Muted colors - Soft neutral grays */
+    --muted: 210 40% 98%; /* Very light gray */
+    --muted-foreground: 215 16% 46%; /* Medium gray */
 
-    /* Accent - Light medical blue */
-    --accent: 217 91% 95%; /* blue-50 */
-    --accent-foreground: 217 91% 60%; /* blue-500 */
+    /* Accent - Light medical teal */
+    --accent: 194 74% 96%; /* Very light teal */
+    --accent-foreground: 194 74% 20%; /* Dark teal */
 
-    /* Destructive - Medical alert red */
-    --destructive: 0 84% 60%; /* red-500 */
-    --destructive-foreground: 0 0% 98%; /* white */
+    /* Destructive - Modern coral red */
+    --destructive: 351 95% 71%; /* Coral red */
+    --destructive-foreground: 0 0% 100%; /* Pure white */
 
-    /* Borders and inputs */
-    --border: 215 16% 87%; /* slate-300 */
-    --input: 215 16% 87%; /* slate-300 */
-    --ring: 217 91% 60%; /* blue-500 */
+    /* Borders and inputs - Subtle grays */
+    --border: 214 32% 91%; /* Light gray border */
+    --input: 214 32% 91%; /* Light gray input */
+    --ring: 194 74% 56%; /* Teal focus ring */
 
-    /* Border radius */
-    --radius: 0.75rem; /* More rounded for friendly medical UI */
+    /* Border radius - Modern rounded */
+    --radius: 0.5rem; /* Clean modern radius */
 
-    /* Medical gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(217 91% 60%), hsl(217 91% 55%));
-    --gradient-secondary: linear-gradient(135deg, hsl(158 64% 52%), hsl(158 64% 47%));
-    --gradient-hero: linear-gradient(135deg, hsl(217 91% 60%) 0%, hsl(158 64% 52%) 100%);
+    /* Modern medical gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(194 74% 56%), hsl(168 76% 42%));
+    --gradient-secondary: linear-gradient(135deg, hsl(168 76% 42%), hsl(194 74% 56%));
+    --gradient-hero: linear-gradient(135deg, hsl(194 74% 56%) 0%, hsl(168 76% 42%) 50%, hsl(194 74% 66%) 100%);
 
-    /* Sidebar colors */
-    --sidebar-background: 0 0% 98%; /* gray-50 */
-    --sidebar-foreground: 215 25% 27%; /* slate-700 */
-    --sidebar-primary: 217 91% 60%; /* blue-500 */
-    --sidebar-primary-foreground: 0 0% 98%; /* white */
-    --sidebar-accent: 217 91% 95%; /* blue-50 */
-    --sidebar-accent-foreground: 217 91% 60%; /* blue-500 */
-    --sidebar-border: 215 16% 87%; /* slate-300 */
-    --sidebar-ring: 217 91% 60%; /* blue-500 */
+    /* Sidebar colors - Clean medical theme */
+    --sidebar-background: 0 0% 100%; /* Pure white */
+    --sidebar-foreground: 215 25% 15%; /* Deep charcoal */
+    --sidebar-primary: 194 74% 56%; /* Modern teal */
+    --sidebar-primary-foreground: 0 0% 100%; /* Pure white */
+    --sidebar-accent: 194 74% 96%; /* Very light teal */
+    --sidebar-accent-foreground: 194 74% 20%; /* Dark teal */
+    --sidebar-border: 214 32% 91%; /* Light gray border */
+    --sidebar-ring: 194 74% 56%; /* Teal ring */
 
-    /* Status colors for medical app */
-    --success: 158 64% 52%; /* emerald-500 */
-    --success-foreground: 0 0% 98%; /* white */
-    --warning: 45 93% 47%; /* amber-500 */
-    --warning-foreground: 0 0% 98%; /* white */
-    --info: 199 89% 48%; /* sky-500 */
-    --info-foreground: 0 0% 98%; /* white */
+    /* Status colors - Modern medical palette */
+    --success: 168 76% 42%; /* Mint green */
+    --success-foreground: 0 0% 100%; /* Pure white */
+    --warning: 38 92% 50%; /* Modern amber */
+    --warning-foreground: 0 0% 100%; /* Pure white */
+    --info: 199 89% 48%; /* Sky blue */
+    --info-foreground: 0 0% 100%; /* Pure white */
   }
 
   .dark {
-    /* Dark medical theme */
-    --background: 215 28% 17%; /* slate-800 */
-    --foreground: 0 0% 98%; /* white */
+    /* Modern dark medical theme */
+    --background: 215 32% 6%; /* Very dark blue-gray */
+    --foreground: 0 0% 98%; /* Pure white */
 
-    --card: 215 28% 17%; /* slate-800 */
-    --card-foreground: 0 0% 98%; /* white */
+    --card: 215 32% 8%; /* Dark blue-gray card */
+    --card-foreground: 0 0% 98%; /* Pure white */
 
-    --popover: 215 28% 17%; /* slate-800 */
-    --popover-foreground: 0 0% 98%; /* white */
+    --popover: 215 32% 8%; /* Dark blue-gray */
+    --popover-foreground: 0 0% 98%; /* Pure white */
 
-    --primary: 217 91% 60%; /* blue-500 */
-    --primary-foreground: 0 0% 98%; /* white */
+    --primary: 194 74% 56%; /* Modern teal */
+    --primary-foreground: 0 0% 100%; /* Pure white */
 
-    --secondary: 158 64% 52%; /* emerald-500 */
-    --secondary-foreground: 0 0% 98%; /* white */
+    --secondary: 168 76% 42%; /* Mint green */
+    --secondary-foreground: 0 0% 100%; /* Pure white */
 
-    --muted: 215 25% 27%; /* slate-700 */
-    --muted-foreground: 215 16% 65%; /* slate-400 */
+    --muted: 215 32% 12%; /* Dark muted */
+    --muted-foreground: 215 16% 65%; /* Light gray */
 
-    --accent: 215 25% 27%; /* slate-700 */
-    --accent-foreground: 217 91% 60%; /* blue-500 */
+    --accent: 215 32% 12%; /* Dark accent */
+    --accent-foreground: 194 74% 56%; /* Teal accent */
 
-    --destructive: 0 84% 60%; /* red-500 */
-    --destructive-foreground: 0 0% 98%; /* white */
+    --destructive: 351 95% 71%; /* Coral red */
+    --destructive-foreground: 0 0% 100%; /* Pure white */
 
-    --border: 215 25% 27%; /* slate-700 */
-    --input: 215 25% 27%; /* slate-700 */
-    --ring: 217 91% 60%; /* blue-500 */
+    --border: 215 32% 15%; /* Dark border */
+    --input: 215 32% 15%; /* Dark input */
+    --ring: 194 74% 56%; /* Teal ring */
 
-    --sidebar-background: 215 32% 14%; /* slate-900 */
-    --sidebar-foreground: 0 0% 98%; /* white */
-    --sidebar-primary: 217 91% 60%; /* blue-500 */
-    --sidebar-primary-foreground: 0 0% 98%; /* white */
-    --sidebar-accent: 215 25% 27%; /* slate-700 */
-    --sidebar-accent-foreground: 217 91% 60%; /* blue-500 */
-    --sidebar-border: 215 25% 27%; /* slate-700 */
-    --sidebar-ring: 217 91% 60%; /* blue-500 */
+    --sidebar-background: 215 32% 4%; /* Very dark sidebar */
+    --sidebar-foreground: 0 0% 98%; /* Pure white */
+    --sidebar-primary: 194 74% 56%; /* Modern teal */
+    --sidebar-primary-foreground: 0 0% 100%; /* Pure white */
+    --sidebar-accent: 215 32% 12%; /* Dark accent */
+    --sidebar-accent-foreground: 194 74% 56%; /* Teal accent */
+    --sidebar-border: 215 32% 15%; /* Dark border */
+    --sidebar-ring: 194 74% 56%; /* Teal ring */
   }
 }
 
