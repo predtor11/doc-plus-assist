@@ -10,7 +10,6 @@ import DoctorDashboard from "./pages/DoctorDashboard";
 import PatientDashboard from "./pages/PatientDashboard";
 import AIChat from "./pages/AIChat";
 import DoctorChat from "./pages/DoctorChat";
-import Analytics from "./pages/Analytics";
 import PatientRegistration from "./pages/PatientRegistration";
 
 import Patients from "./pages/Patients";
@@ -98,16 +97,7 @@ const AppRoutes = () => {
               </ProtectedRoute>
             }
           />
-          <Route
-            path="/analytics"
-            element={
-              <ProtectedRoute>
-                <DashboardLayout>
-                  <Analytics />
-                </DashboardLayout>
-              </ProtectedRoute>
-            }
-          />
+          
         </>
       )}
       <Route path="*" element={<NotFound />} />
