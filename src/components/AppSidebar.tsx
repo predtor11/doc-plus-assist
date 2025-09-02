@@ -17,8 +17,6 @@ import {
   LayoutDashboard,
   Users,
   MessageCircle,
-  BarChart3,
-  UserPlus,
   LogOut,
   Stethoscope,
   Heart
@@ -34,8 +32,6 @@ const AppSidebar = () => {
     { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
     { title: 'Patients', url: '/patients', icon: Users },
     { title: 'AI Assistant', url: '/ai-chat', icon: MessageCircle },
-    { title: 'Register Patient', url: '/register-patient', icon: UserPlus },
-    { title: 'Analytics', url: '/analytics', icon: BarChart3 },
   ];
 
   const patientItems = [
