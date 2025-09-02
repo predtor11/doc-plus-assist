@@ -12,7 +12,7 @@ import AIChat from "./pages/AIChat";
 import DoctorChat from "./pages/DoctorChat";
 import Analytics from "./pages/Analytics";
 import PatientRegistration from "./pages/PatientRegistration";
-import History from "./pages/History";
+
 import Patients from "./pages/Patients";
 import NotFound from "./pages/NotFound";
 
@@ -71,16 +71,6 @@ const AppRoutes = () => {
           <ProtectedRoute>
             <DashboardLayout>
               <DoctorChat />
-            </DashboardLayout>
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/history"
-        element={
-          <ProtectedRoute>
-            <DashboardLayout>
-              <History />
             </DashboardLayout>
           </ProtectedRoute>
         }

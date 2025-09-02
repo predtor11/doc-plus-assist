@@ -17,7 +17,6 @@ import {
   LayoutDashboard,
   Users,
   MessageCircle,
-  History,
   BarChart3,
   UserPlus,
   LogOut,
@@ -37,14 +36,12 @@ const AppSidebar = () => {
     { title: 'AI Assistant', url: '/ai-chat', icon: MessageCircle },
     { title: 'Register Patient', url: '/register-patient', icon: UserPlus },
     { title: 'Analytics', url: '/analytics', icon: BarChart3 },
-    { title: 'History', url: '/history', icon: History },
   ];
 
   const patientItems = [
     { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
     { title: 'AI Support', url: '/ai-chat', icon: Heart },
     { title: 'My Doctor', url: '/doctor-chat', icon: Stethoscope },
-    { title: 'History', url: '/history', icon: History },
   ];
 
   const items = user?.role === 'doctor' ? doctorItems : patientItems;

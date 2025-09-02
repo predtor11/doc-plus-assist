@@ -14,35 +14,73 @@ export type Database = {
   }
   public: {
     Tables: {
-      conversations: {
+      chat_sessions: {
         Row: {
-          chat_type: string
+          created_at: string
+          id: string
+          last_message_at: string | null
+          participant_1_id: string | null
+          participant_2_id: string | null
+          session_type: string
+          title: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_message_at?: string | null
+          participant_1_id?: string | null
+          participant_2_id?: string | null
+          session_type: string
+          title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_message_at?: string | null
+          participant_1_id?: string | null
+          participant_2_id?: string | null
+          session_type?: string
+          title?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      messages: {
+        Row: {
+          content: string
           created_at: string
           id: string
           is_ai_message: boolean | null
-          message: string
-          recipient_id: string | null
           sender_id: string | null
+          session_id: string
         }
         Insert: {
-          chat_type: string
+          content: string
           created_at?: string
           id?: string
           is_ai_message?: boolean | null
-          message: string
-          recipient_id?: string | null
           sender_id?: string | null
+          session_id: string
         }
         Update: {
-          chat_type?: string
+          content?: string
           created_at?: string
           id?: string
           is_ai_message?: boolean | null
-          message?: string
-          recipient_id?: string | null
           sender_id?: string | null
+          session_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "messages_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "chat_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       patients: {
         Row: {
