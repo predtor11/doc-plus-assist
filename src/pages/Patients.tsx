@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Search, MessageCircle, User, Calendar, Phone, Mail } from 'lucide-react';
+import { Search, MessageCircle, User } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const Patients = () => {
@@ -134,27 +134,9 @@ const Patients = () => {
               </div>
             </CardHeader>
             
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <div className="flex items-center text-sm text-muted-foreground">
-                  <Mail className="h-4 w-4 mr-2" />
-                  {patient.email}
-                </div>
-                <div className="flex items-center text-sm text-muted-foreground">
-                  <Phone className="h-4 w-4 mr-2" />
-                  {patient.phone}
-                </div>
-                <div className="flex items-center text-sm text-muted-foreground">
-                  <Calendar className="h-4 w-4 mr-2" />
-                  Last visit: {patient.lastVisit}
-                </div>
-              </div>
-              
-              <div>
-                <p className="text-sm font-medium mb-1">Current Symptoms:</p>
-                <p className="text-sm text-muted-foreground">{patient.symptoms}</p>
-              </div>
-              
+            <CardContent className="space-y-3">
+              <p className="text-sm text-muted-foreground">Last visit: {patient.lastVisit}</p>
+
               <div className="flex space-x-2">
                 <Button 
                   size="sm" 
