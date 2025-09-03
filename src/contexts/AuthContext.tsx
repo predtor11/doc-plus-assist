@@ -2,15 +2,15 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { User, Session } from '@supabase/supabase-js';
 
-interface Profile {
+interface DoctorProfile {
   id: string;
   user_id: string;
   username: string;
-  role: 'doctor' | 'patient';
   name: string;
+  registration_no?: string | null;
 }
 
-interface AuthUser extends Profile {
+interface AuthUser extends DoctorProfile {
   email?: string;
 }
 
@@ -18,7 +18,11 @@ interface AuthContextType {
   user: AuthUser | null;
   session: Session | null;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  signUp: (email: string, password: string, userData: { username: string; role: 'doctor' | 'patient'; name: string }) => Promise<{ success: boolean; error?: string }>;
+  signUp: (
+    email: string,
+    password: string,
+    userData: { username: string; name: string; registrationNo?: string }
+  ) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   isLoading: boolean;
 }
@@ -37,24 +41,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setSession(session);
         
         if (session?.user) {
-          // Fetch user profile
+          // Fetch doctor profile
           const { data: profile } = await supabase
-            .from('profiles')
+            .from('doctors')
             .select('*')
             .eq('user_id', session.user.id)
             .single();
           
-          if (profile) {
+          if (profile && session?.user) {
             setUser({
               ...profile,
-              role: profile.role as 'doctor' | 'patient',
-              email: session.user.email
+              email: session.user.email,
             });
+          } else {
+            setUser(null);
           }
-        } else {
-          setUser(null);
         }
-        
         setIsLoading(false);
       }
     );
@@ -63,9 +65,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       if (session?.user) {
-        // Fetch user profile
+        // Fetch doctor profile
         supabase
-          .from('profiles')
+          .from('doctors')
           .select('*')
           .eq('user_id', session.user.id)
           .single()
@@ -73,8 +75,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (profile) {
               setUser({
                 ...profile,
-                role: profile.role as 'doctor' | 'patient',
-                email: session.user.email
+                email: session.user.email,
               });
             }
             setIsLoading(false);
@@ -100,7 +101,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { success: true };
   };
 
-  const signUp = async (email: string, password: string, userData: { username: string; role: 'doctor' | 'patient'; name: string }) => {
+  const signUp = async (
+    email: string,
+    password: string,
+    userData: { username: string; name: string; registrationNo?: string }
+  ) => {
     const redirectUrl = `${window.location.origin}/`;
     
     const { error } = await supabase.auth.signUp({

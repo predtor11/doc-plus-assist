@@ -127,17 +127,17 @@ export type Database = {
             foreignKeyName: "patients_assigned_doctor_id_fkey"
             columns: ["assigned_doctor_id"]
             isOneToOne: false
-            referencedRelation: "profiles"
+            referencedRelation: "doctors"
             referencedColumns: ["user_id"]
           },
         ]
       }
-      profiles: {
+      doctors: {
         Row: {
           created_at: string
           id: string
           name: string
-          role: string
+          registration_no: string | null
           updated_at: string
           user_id: string
           username: string
@@ -146,7 +146,7 @@ export type Database = {
           created_at?: string
           id?: string
           name: string
-          role: string
+          registration_no?: string | null
           updated_at?: string
           user_id: string
           username: string
@@ -155,7 +155,7 @@ export type Database = {
           created_at?: string
           id?: string
           name?: string
-          role?: string
+          registration_no?: string | null
           updated_at?: string
           user_id?: string
           username?: string

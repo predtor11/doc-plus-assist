@@ -49,7 +49,7 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <DashboardLayout>
-              {user?.role === 'doctor' ? <DoctorDashboard /> : <PatientDashboard />}
+              {user?.registration_no ? <DoctorDashboard /> : <PatientDashboard />}
             </DashboardLayout>
           </ProtectedRoute>
         }
@@ -75,7 +75,7 @@ const AppRoutes = () => {
         }
       />
       {/* Doctor-only routes */}
-      {user?.role === 'doctor' && (
+      {user?.registration_no && (
         <>
           <Route
             path="/patients"
