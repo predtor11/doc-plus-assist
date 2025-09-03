@@ -18,7 +18,7 @@ const LoginPage = () => {
     confirmPassword: '',
     username: '',
     name: '',
-    role: 'patient' as 'doctor' | 'patient'
+    registrationNo: ''
   });
   const { login, signUp, isLoading } = useAuth();
   const { toast } = useToast();
@@ -56,8 +56,8 @@ const LoginPage = () => {
 
     const result = await signUp(signUpData.email, signUpData.password, {
       username: signUpData.username,
-      role: signUpData.role,
-      name: signUpData.name
+      name: signUpData.name,
+      registrationNo: signUpData.registrationNo || undefined,
     });
     
     if (result.success) {
@@ -152,7 +152,7 @@ const LoginPage = () => {
               <CardHeader className="text-center">
                 <CardTitle>Create Account</CardTitle>
                 <CardDescription>
-                  Join Doc+ as a doctor or patient
+                  Join Doc+
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -202,21 +202,14 @@ const LoginPage = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="role">Role</Label>
-                    <Select 
-                      value={signUpData.role} 
-                      onValueChange={(value: 'doctor' | 'patient') => 
-                        setSignUpData(prev => ({ ...prev, role: value }))
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select your role" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="patient">Patient</SelectItem>
-                        <SelectItem value="doctor">Doctor</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Label htmlFor="registration-no">Registration Number</Label>
+                    <Input
+                      id="registration-no"
+                      type="text"
+                      placeholder="e.g. GMC-123456"
+                      value={signUpData.registrationNo}
+                      onChange={(e) => setSignUpData(prev => ({ ...prev, registrationNo: e.target.value }))}
+                    />
                   </div>
                   
                   <div className="space-y-2">
