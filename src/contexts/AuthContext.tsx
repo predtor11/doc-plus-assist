@@ -12,6 +12,7 @@ interface DoctorProfile {
 
 interface AuthUser extends DoctorProfile {
   email?: string;
+  role: 'doctor' | 'patient';
 }
 
 interface AuthContextType {
@@ -52,6 +53,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setUser({
               ...profile,
               email: session.user.email,
+              role: profile.registration_no ? 'doctor' : 'patient',
             });
           } else {
             setUser(null);
@@ -76,6 +78,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               setUser({
                 ...profile,
                 email: session.user.email,
+                role: profile.registration_no ? 'doctor' : 'patient',
               });
             }
             setIsLoading(false);

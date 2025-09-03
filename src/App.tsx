@@ -6,7 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import LoginPage from "./components/LoginPage";
 import DashboardLayout from "./components/DashboardLayout";
-import DoctorDashboard from "./pages/DoctorDashboard";
+import DoctorChatPage from "./pages/DoctorChatPage";
 import PatientDashboard from "./pages/PatientDashboard";
 import AIChat from "./pages/AIChat";
 import DoctorChat from "./pages/DoctorChat";
@@ -43,13 +43,13 @@ const AppRoutes = () => {
   
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      <Route path="/" element={<Navigate to="/chat" replace />} />
       <Route
-        path="/dashboard"
+        path="/chat"
         element={
           <ProtectedRoute>
             <DashboardLayout>
-              {user?.registration_no ? <DoctorDashboard /> : <PatientDashboard />}
+              {user?.registration_no ? <DoctorChatPage /> : <PatientDashboard />}
             </DashboardLayout>
           </ProtectedRoute>
         }
