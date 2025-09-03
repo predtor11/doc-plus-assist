@@ -29,13 +29,13 @@ const AppSidebar = () => {
   const collapsed = state === 'collapsed';
 
   const doctorItems = [
-    { title: 'Chat', url: '/chat', icon: MessageCircle },
+    { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
     { title: 'Patients', url: '/patients', icon: Users },
     { title: 'AI Assistant', url: '/ai-chat', icon: MessageCircle },
   ];
 
   const patientItems = [
-    { title: 'Chat', url: '/chat', icon: MessageCircle },
+    { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
     { title: 'AI Support', url: '/ai-chat', icon: Heart },
     { title: 'My Doctor', url: '/doctor-chat', icon: Stethoscope },
   ];
