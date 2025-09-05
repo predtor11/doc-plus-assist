@@ -32,7 +32,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ session, onSessionUpdate, onNew
   const testLMStudioConnection = async () => {
     try {
       console.log('Testing LM Studio connection...');
-      const response = await fetch(`${import.meta.env.VITE_LM_STUDIO_URL}/v1/models`, {
+      const response = await fetch(`/api/lm-studio/v1/models`, {
         method: 'GET',
       });
       console.log('LM Studio models endpoint response:', response.status);
@@ -109,14 +109,14 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ session, onSessionUpdate, onNew
       });
 
       // Call LM Studio API
-      console.log('Attempting to connect to LM Studio at:', `${import.meta.env.VITE_LM_STUDIO_URL}/v1/chat/completions`);
+      console.log('Attempting to connect to LM Studio at:', `/api/lm-studio/v1/chat/completions`);
       console.log('Request payload:', {
         messages: conversationMessages,
         max_tokens: 500,
         temperature: 0.7,
       });
       
-      const response = await fetch(`${import.meta.env.VITE_LM_STUDIO_URL}/v1/chat/completions`, {
+      const response = await fetch(`/api/lm-studio/v1/chat/completions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
