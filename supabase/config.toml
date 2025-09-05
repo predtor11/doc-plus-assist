@@ -19,7 +19,6 @@ max_client_conn = 100
 
 [realtime]
 enabled = true
-port = 54323
 ip_version = "IPv4"
 
 [studio]
@@ -35,17 +34,13 @@ pop3_port = 54327
 
 [storage]
 enabled = true
-port = 54328
 file_size_limit = "50MiB"
 
 [auth]
 enabled = true
-port = 54329
 site_url = "http://127.0.0.1:3000"
 additional_redirect_urls = ["https://127.0.0.1:3000"]
 jwt_expiry = 3600
-refresh_token_rotation_enabled = true
-security_update_password_required_for_ssr = false
 
 [functions.send-temp-password]
 verify_jwt = true
