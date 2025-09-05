@@ -74,19 +74,32 @@ const handler = async (req: Request): Promise<Response> => {
       `,
     });
 
-    console.log("Email sent successfully:", emailResponse);
+    // Check if the email response contains an error
+    if (emailResponse.error) {
+      console.error("Email sending failed:", emailResponse.error);
+      return new Response(
+        JSON.stringify({ error: `Email sending failed: ${emailResponse.error.message}` }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        }
+      );
+    }
 
-    return new Response(JSON.stringify(emailResponse), {
+    console.log("Email sent successfully:", emailResponse.data);
+
+    return new Response(JSON.stringify({ data: emailResponse.data }), {
       status: 200,
       headers: {
         "Content-Type": "application/json",
         ...corsHeaders,
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error in send-temp-password function:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: errorMessage }),
       {
         status: 500,
         headers: { "Content-Type": "application/json", ...corsHeaders },
