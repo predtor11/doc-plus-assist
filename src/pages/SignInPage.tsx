@@ -6,13 +6,14 @@ import { Label } from '@/components/ui/label';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Stethoscope, Lock, Mail } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 const SignInPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const { login, isLoading } = useAuth();
+  const { login, isLoading, user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,6 +25,17 @@ const SignInPage = () => {
         title: "Login successful",
         description: "Welcome to Doc+",
       });
+      
+      // Navigate based on user role
+      setTimeout(() => {
+        if (user?.role === 'doctor') {
+          navigate('/dashboard');
+        } else if (user?.role === 'patient') {
+          navigate('/dashboard');
+        } else {
+          navigate('/dashboard'); // fallback
+        }
+      }, 100); // Small delay to allow user state to update
     } else {
       toast({
         title: "Login failed",

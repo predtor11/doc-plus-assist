@@ -2,16 +2,70 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-const SUPABASE_URL = "https://azjhqasjbrujfddbzxqw.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF6amhxYXNqYnJ1amZkZGJ6eHF3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY3MjQ1NjMsImV4cCI6MjA3MjMwMDU2M30.Pr0fbz79XckvUUKTi0CPvQWsIFqFEiP2r1PlezlJeOQ";
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://azjhqasjbrujfddbzxqw.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF6amhxYXNqYnJ1amZkZGJ6eHF3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY3MjQ1NjMsImV4cCI6MjA3MjMwMDU2M30.Pr0fbz79XckvUUKTi0CPvQWsIFqFEiP2r1PlezlJeOQ";
+
+// Debug logging
+console.log('Supabase Configuration:', {
+  url: SUPABASE_URL,
+  hasApiKey: !!SUPABASE_PUBLISHABLE_KEY,
+  apiKeyLength: SUPABASE_PUBLISHABLE_KEY?.length,
+  envVars: {
+    VITE_SUPABASE_URL: import.meta.env.VITE_SUPABASE_URL,
+    VITE_SUPABASE_PUBLISHABLE_KEY: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ? '***' + import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY.slice(-4) : undefined
+  }
+});
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
+
+// Create a custom fetch function that includes the user's token
+const customFetch = async (url: RequestInfo | URL, init?: RequestInit) => {
+  // Get session directly from localStorage to avoid circular dependency
+  const sessionData = localStorage.getItem('sb-' + SUPABASE_URL.split('//')[1].split('.')[0] + '-auth-token');
+  let session = null;
+  
+  if (sessionData) {
+    try {
+      const parsed = JSON.parse(sessionData);
+      session = parsed;
+    } catch (e) {
+      console.error('Error parsing session data:', e);
+    }
+  }
+  
+  const headers = new Headers(init?.headers);
+  headers.set('apikey', SUPABASE_PUBLISHABLE_KEY);
+  
+  if (session?.access_token) {
+    headers.set('Authorization', `Bearer ${session.access_token}`);
+    console.log('Using user access token for authenticated request');
+  } else {
+    headers.set('Authorization', `Bearer ${SUPABASE_PUBLISHABLE_KEY}`);
+    console.log('Using API key for anonymous request');
+  }
+  
+  return fetch(url, {
+    ...init,
+    headers,
+  });
+};
 
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
     storage: localStorage,
     persistSession: true,
     autoRefreshToken: true,
-  }
+  },
+  global: {
+    fetch: customFetch,
+  },
+  db: {
+    schema: 'public',
+  },
+  realtime: {
+    params: {
+      eventsPerSecond: 10,
+    },
+  },
 });

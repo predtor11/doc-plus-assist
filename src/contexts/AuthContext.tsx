@@ -10,8 +10,31 @@ interface DoctorProfile {
   registration_no?: string | null;
 }
 
-interface AuthUser extends DoctorProfile {
+interface PatientProfile {
+  id: string;
+  user_id: string | null;
+  name: string;
+  email?: string | null;
+  age?: number | null;
+  gender?: string | null;
+  phone?: string | null;
+  medical_history?: string | null;
+  assigned_doctor_id?: string | null;
+}
+
+interface AuthUser {
+  id: string;
+  user_id: string;
+  username?: string;
+  name: string;
   email?: string;
+  role: 'doctor' | 'patient';
+  registration_no?: string | null;
+  age?: number | null;
+  gender?: string | null;
+  phone?: string | null;
+  medical_history?: string | null;
+  assigned_doctor_id?: string | null;
 }
 
 interface AuthContextType {
@@ -41,20 +64,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setSession(session);
         
         if (session?.user) {
-          // Fetch doctor profile
-          const { data: profile } = await supabase
+          // Try to fetch doctor profile first
+          const { data: doctorProfile } = await supabase
             .from('doctors')
             .select('*')
             .eq('user_id', session.user.id)
             .single();
           
-          if (profile && session?.user) {
+          if (doctorProfile) {
             setUser({
-              ...profile,
+              ...doctorProfile,
               email: session.user.email,
+              role: 'doctor',
             });
           } else {
-            setUser(null);
+            // Try to fetch patient profile
+            const { data: patientProfile } = await supabase
+              .from('patients')
+              .select('*')
+              .eq('user_id', session.user.id)
+              .single();
+            
+            if (patientProfile) {
+              setUser({
+                ...patientProfile,
+                email: session.user.email || patientProfile.email,
+                role: 'patient',
+                username: patientProfile.name, // patients don't have username, use name
+              });
+            } else {
+              setUser(null);
+            }
           }
         }
         setIsLoading(false);
@@ -65,18 +105,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       if (session?.user) {
-        // Fetch doctor profile
+        // Try to fetch doctor profile first
         supabase
           .from('doctors')
           .select('*')
           .eq('user_id', session.user.id)
           .single()
-          .then(({ data: profile }) => {
-            if (profile) {
+          .then(async ({ data: doctorProfile }) => {
+            if (doctorProfile) {
               setUser({
-                ...profile,
+                ...doctorProfile,
                 email: session.user.email,
+                role: 'doctor',
               });
+            } else {
+              // Try to fetch patient profile
+              const { data: patientProfile } = await supabase
+                .from('patients')
+                .select('*')
+                .eq('user_id', session.user.id)
+                .single();
+              
+              if (patientProfile) {
+                setUser({
+                  ...patientProfile,
+                  email: session.user.email || patientProfile.email,
+                  role: 'patient',
+                  username: patientProfile.name,
+                });
+              }
             }
             setIsLoading(false);
           });

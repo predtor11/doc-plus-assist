@@ -14,6 +14,7 @@ import PatientRegistration from "./pages/PatientRegistration";
 
 import Patients from "./pages/Patients";
 import NotFound from "./pages/NotFound";
+import PatientDetail from "./pages/PatientDetail";
 
 const queryClient = new QueryClient();
 
@@ -49,7 +50,7 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <DashboardLayout>
-              {user?.registration_no ? <DoctorDashboard /> : <PatientDashboard />}
+              {user?.role === 'doctor' ? <DoctorDashboard /> : <PatientDashboard />}
             </DashboardLayout>
           </ProtectedRoute>
         }
@@ -75,7 +76,7 @@ const AppRoutes = () => {
         }
       />
       {/* Doctor-only routes */}
-      {user?.registration_no && (
+      {user?.role === 'doctor' && (
         <>
           <Route
             path="/patients"
@@ -93,6 +94,16 @@ const AppRoutes = () => {
               <ProtectedRoute>
                 <DashboardLayout>
                   <PatientRegistration />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/patient/:id"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <PatientDetail />
                 </DashboardLayout>
               </ProtectedRoute>
             }

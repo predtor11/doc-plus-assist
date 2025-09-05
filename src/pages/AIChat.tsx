@@ -52,6 +52,7 @@ const AIChat = () => {
       <ChatWindow
         session={selectedSession}
         onSessionUpdate={handleSessionUpdate}
+        onNewSession={handleNewSession}
       />
     </div>
   );

@@ -32,15 +32,24 @@ const SignUpPage = () => {
       return;
     }
 
+    if (!signUpData.registrationNo.trim()) {
+      toast({
+        title: "Registration number required",
+        description: "Only doctors can sign up. Please provide your medical registration number.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const result = await signUp(signUpData.email, signUpData.password, {
       username: signUpData.username,
       name: signUpData.name,
-      registrationNo: signUpData.registrationNo || undefined,
+      registrationNo: signUpData.registrationNo,
     });
     
     if (result.success) {
       toast({
-        title: "Account created successfully",
+        title: "Doctor account created successfully",
         description: "Please check your email to verify your account",
       });
     } else {
@@ -69,9 +78,9 @@ const SignUpPage = () => {
 
         <Card className="shadow-lg">
           <CardHeader className="text-center">
-            <CardTitle>Create Account</CardTitle>
+            <CardTitle>Doctor Registration</CardTitle>
             <CardDescription>
-              Join Doc+
+              Register as a healthcare professional to join Doc+
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -121,13 +130,14 @@ const SignUpPage = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="registration-no">Registration Number</Label>
+                <Label htmlFor="registration-no">Medical Registration Number *</Label>
                 <Input
                   id="registration-no"
                   type="text"
-                  placeholder="e.g. GMC-123456 (optional for patients)"
+                  placeholder="e.g. GMC-123456 or equivalent"
                   value={signUpData.registrationNo}
                   onChange={(e) => setSignUpData(prev => ({ ...prev, registrationNo: e.target.value }))}
+                  required
                 />
               </div>
               
@@ -168,7 +178,7 @@ const SignUpPage = () => {
                 className="w-full bg-gradient-primary hover:opacity-90"
                 disabled={isLoading}
               >
-                {isLoading ? 'Creating Account...' : 'Create Account'}
+                {isLoading ? 'Creating Doctor Account...' : 'Register as Doctor'}
               </Button>
             </form>
 
@@ -178,6 +188,9 @@ const SignUpPage = () => {
                 <Link to="/signin" className="text-primary hover:underline">
                   Sign in
                 </Link>
+              </p>
+              <p className="text-xs text-muted-foreground mt-2">
+                Patients are registered by their assigned doctors and cannot sign up directly.
               </p>
             </div>
           </CardContent>

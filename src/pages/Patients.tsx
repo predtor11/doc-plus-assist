@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,78 +6,77 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Search, MessageCircle, User } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+
+interface Patient {
+  id: string;
+  name: string;
+  age: number | null;
+  email: string | null;
+  phone: string | null;
+  medical_history: string | null;
+  created_at: string;
+}
 
 const Patients = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Mock patient data
-  const patients = [
-    {
-      id: '1',
-      name: 'John Doe',
-      age: 45,
-      email: 'john.doe@email.com',
-      phone: '+1 234-567-8901',
-      lastVisit: '2024-01-14',
-      status: 'Active',
-      symptoms: 'Anxiety, Insomnia',
-      unreadMessages: 2
-    },
-    {
-      id: '2',
-      name: 'Jane Wilson',
-      age: 32,
-      email: 'jane.wilson@email.com',
-      phone: '+1 234-567-8902',
-      lastVisit: '2024-01-12',
-      status: 'Needs Attention',
-      symptoms: 'Headaches, Fatigue',
-      unreadMessages: 0
-    },
-    {
-      id: '3',
-      name: 'Robert Chen',
-      age: 28,
-      email: 'robert.chen@email.com',
-      phone: '+1 234-567-8903',
-      lastVisit: '2024-01-10',
-      status: 'Stable',
-      symptoms: 'Back Pain',
-      unreadMessages: 1
-    },
-    {
-      id: '4',
-      name: 'Emily Davis',
-      age: 55,
-      email: 'emily.davis@email.com',
-      phone: '+1 234-567-8904',
-      lastVisit: '2024-01-08',
-      status: 'Follow-up Required',
-      symptoms: 'Hypertension',
-      unreadMessages: 0
-    },
-  ];
+  // Only allow doctors to access this page
+  if (!user || user.role !== 'doctor') {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Card className="w-full max-w-md">
+          <CardContent className="p-6 text-center">
+            <h2 className="text-xl font-semibold mb-2">Access Denied</h2>
+            <p className="text-muted-foreground mb-4">
+              Only doctors can view patient lists.
+            </p>
+            <Button onClick={() => navigate('/dashboard')}>
+              Go to Dashboard
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  useEffect(() => {
+    if (user?.role === 'doctor') {
+      fetchPatients();
+    }
+  }, [user]);
+
+  const fetchPatients = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('patients')
+        .select('*')
+        .eq('assigned_doctor_id', user?.user_id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setPatients(data || []);
+    } catch (error) {
+      console.error('Error fetching patients:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filteredPatients = patients.filter(patient =>
     patient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    patient.symptoms.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    patient.email.toLowerCase().includes(searchTerm.toLowerCase())
+    (patient.medical_history && patient.medical_history.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (patient.email && patient.email.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'Active':
-        return 'bg-success text-success-foreground';
-      case 'Needs Attention':
-        return 'bg-warning text-warning-foreground';
-      case 'Follow-up Required':
-        return 'bg-info text-info-foreground';
-      case 'Stable':
-        return 'bg-muted text-muted-foreground';
-      default:
-        return 'bg-muted text-muted-foreground';
-    }
+  const getStatusColor = (patient: Patient) => {
+    // For now, all patients are considered active
+    return 'bg-success text-success-foreground';
   };
 
   const getInitials = (name: string) => {
@@ -86,15 +85,24 @@ const Patients = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground mb-2">Patient Management</h1>
-          <p className="text-muted-foreground">Manage and communicate with your patients</p>
+      {loading ? (
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading patients...</p>
+          </div>
         </div>
-        <Button onClick={() => navigate('/register-patient')} className="bg-gradient-primary">
-          Add New Patient
-        </Button>
-      </div>
+      ) : (
+        <>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-foreground mb-2">Patient Management</h1>
+              <p className="text-muted-foreground">Manage and communicate with your patients</p>
+            </div>
+            <Button onClick={() => navigate('/register-patient')} className="bg-gradient-primary">
+              Add New Patient
+            </Button>
+          </div>
 
       {/* Search */}
       <Card>
@@ -125,17 +133,19 @@ const Patients = () => {
                   </Avatar>
                   <div>
                     <CardTitle className="text-lg">{patient.name}</CardTitle>
-                    <p className="text-sm text-muted-foreground">Age: {patient.age}</p>
+                    <p className="text-sm text-muted-foreground">Age: {patient.age || 'N/A'}</p>
                   </div>
                 </div>
-                <Badge className={getStatusColor(patient.status)}>
-                  {patient.status}
+                <Badge className={getStatusColor(patient)}>
+                  Active
                 </Badge>
               </div>
             </CardHeader>
             
             <CardContent className="space-y-3">
-              <p className="text-sm text-muted-foreground">Last visit: {patient.lastVisit}</p>
+              <p className="text-sm text-muted-foreground">
+                Registered: {new Date(patient.created_at).toLocaleDateString()}
+              </p>
 
               <div className="flex space-x-2">
                 <Button 
@@ -145,11 +155,6 @@ const Patients = () => {
                 >
                   <MessageCircle className="h-4 w-4 mr-2" />
                   Chat
-                  {patient.unreadMessages > 0 && (
-                    <Badge variant="destructive" className="ml-2 h-5 w-5 rounded-full p-0 text-xs">
-                      {patient.unreadMessages}
-                    </Badge>
-                  )}
                 </Button>
                 <Button 
                   size="sm" 
@@ -181,6 +186,8 @@ const Patients = () => {
             )}
           </CardContent>
         </Card>
+      )}
+        </>
       )}
     </div>
   );

@@ -18,7 +18,7 @@ export const useChatSessions = (sessionType?: string) => {
       let query = supabase
         .from('chat_sessions')
         .select('*')
-        .or(`participant_1_id.eq.${user.id},participant_2_id.eq.${user.id}`)
+        .or(`participant_1_id.eq.${user.user_id},participant_2_id.eq.${user.user_id}`)
         .order('last_message_at', { ascending: false });
 
       if (sessionType) {
@@ -42,7 +42,7 @@ export const useChatSessions = (sessionType?: string) => {
     try {
       const sessionData = {
         session_type: sessionType,
-        participant_1_id: user.id,
+        participant_1_id: user.user_id,
         participant_2_id: participantId || null,
         title: title || `New ${sessionType.replace('-', ' ')} session`,
       };
@@ -116,25 +116,41 @@ export const useMessages = (sessionId: string | null) => {
   };
 
   const sendMessage = async (content: string, isAiMessage = false) => {
-    if (!sessionId) return null;
+    if (!sessionId) {
+      console.error('No sessionId provided to sendMessage');
+      return null;
+    }
+
+    console.log('sendMessage called with:', { content, isAiMessage, sessionId });
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return null;
+      console.log('Auth user:', user);
+      if (!user) {
+        console.error('No authenticated user found');
+        return null;
+      }
+
+      const messageData = {
+        session_id: sessionId,
+        sender_id: user.id,
+        content,
+        is_ai_message: isAiMessage,
+      };
+      console.log('Inserting message data:', messageData);
 
       const { data, error } = await supabase
         .from('messages')
-        .insert({
-          session_id: sessionId,
-          sender_id: user.id,
-          content,
-          is_ai_message: isAiMessage,
-        })
+        .insert(messageData)
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Database error inserting message:', error);
+        throw error;
+      }
 
+      console.log('Message inserted successfully:', data);
       setMessages(prev => [...prev, data]);
       return data;
     } catch (error) {
