@@ -169,11 +169,11 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ session, onSessionUpdate, onNew
 
   const getMessageStyle = (message: Message) => {
     if (message.sender_id === user?.user_id) {
-      return 'bg-primary text-primary-foreground ml-12';
+      return 'bg-primary text-primary-foreground ml-16';
     } else if (message.is_ai_message) {
-      return 'bg-secondary/20 text-secondary-foreground mr-12 border border-secondary/30';
+      return 'bg-accent text-accent-foreground mr-16 border border-accent/30';
     } else {
-      return 'bg-muted text-muted-foreground mr-12';
+      return 'bg-muted text-muted-foreground mr-16';
     }
   };
 
@@ -292,7 +292,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ session, onSessionUpdate, onNew
 
           {isLoading && (
             <div className="flex justify-start">
-              <div className="bg-secondary/20 text-secondary-foreground p-3 rounded-lg mr-12 border border-secondary/30">
+              <div className="bg-accent text-accent-foreground p-3 rounded-lg mr-16 border border-accent/30">
                 <div className="flex items-center space-x-2">
                   <div className="flex space-x-1">
                     <div className="w-2 h-2 bg-current rounded-full animate-bounce"></div>
