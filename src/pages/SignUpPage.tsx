@@ -41,6 +41,16 @@ const SignUpPage = () => {
       return;
     }
 
+    // Validate registration number format (basic check)
+    if (signUpData.registrationNo.length < 5) {
+      toast({
+        title: "Invalid registration number",
+        description: "Please provide a valid medical registration number.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const result = await signUp(signUpData.email, signUpData.password, {
       username: signUpData.username,
       name: signUpData.name,

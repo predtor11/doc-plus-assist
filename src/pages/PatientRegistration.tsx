@@ -202,6 +202,7 @@ const PatientRegistration = () => {
         email: patientData.email,
         password: tempPassword,
         options: {
+          emailRedirectTo: `${window.location.origin}/signin`,
           data: {
             name: `${patientData.firstName} ${patientData.lastName}`.trim(),
             isPatient: true,
@@ -271,9 +272,36 @@ const PatientRegistration = () => {
         }
       }
 
+      // Send temporary password via email
+      try {
+        const { error: emailError } = await supabase.functions.invoke('send-temp-password', {
+          body: {
+            patientName: `${patientData.firstName} ${patientData.lastName}`.trim(),
+            patientEmail: patientData.email,
+            tempPassword: tempPassword,
+            doctorName: user.name
+          }
+        });
+
+        if (emailError) {
+          console.error('Email sending error:', emailError);
+          throw new Error('Failed to send temporary password email');
+        }
+
+        console.log('Temporary password email sent successfully');
+      } catch (emailError: any) {
+        console.error('Error sending email:', emailError);
+        // Don't fail registration if email fails, but show warning
+        toast({
+          title: "Patient registered with warning",
+          description: `Patient account created but temporary password email could not be sent. Temp password: ${tempPassword}`,
+          variant: "destructive",
+        });
+      }
+
       toast({
         title: "Patient registered successfully",
-        description: `Patient account created with email: ${patientData.email}. Temporary password: ${tempPassword}`,
+        description: `Patient account created and temporary password sent to ${patientData.email}`,
       });
 
       // Reset form
