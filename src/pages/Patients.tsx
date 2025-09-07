@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,24 +7,15 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Search, MessageCircle, User } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
-
-interface Patient {
-  id: string;
-  name: string;
-  age: number | null;
-  email: string | null;
-  phone: string | null;
-  medical_history: string | null;
-  created_at: string;
-}
+import { useDoctorPatients } from '@/hooks/useDoctorPatients';
+import { useChatSessions } from '@/hooks/useChatSessions';
 
 const Patients = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
-  const [patients, setPatients] = useState<Patient[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { patients, loading, error } = useDoctorPatients();
+  const { createSession } = useChatSessions();
 
   // Only allow doctors to access this page
   if (!user || user.role !== 'doctor') {
@@ -45,38 +36,38 @@ const Patients = () => {
     );
   }
 
-  useEffect(() => {
-    if (user?.role === 'doctor') {
-      fetchPatients();
-    }
-  }, [user]);
+  const filteredPatients = patients.filter(patient =>
+    patient.patientName.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
-  const fetchPatients = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('patients')
-        .select('*')
-        .eq('assigned_doctor_id', user?.user_id)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setPatients(data || []);
-    } catch (error) {
-      console.error('Error fetching patients:', error);
-    } finally {
-      setLoading(false);
+  const getStatusColor = (status: 'Active' | 'Needs attention' | 'Stable') => {
+    switch (status) {
+      case 'Active':
+        return 'bg-green-500 text-white';
+      case 'Needs attention':
+        return 'bg-yellow-500 text-white';
+      case 'Stable':
+        return 'bg-blue-500 text-white';
+      default:
+        return 'bg-gray-500 text-white';
     }
   };
 
-  const filteredPatients = patients.filter(patient =>
-    patient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (patient.medical_history && patient.medical_history.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (patient.email && patient.email.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
-
-  const getStatusColor = (patient: Patient) => {
-    // For now, all patients are considered active
-    return 'bg-success text-success-foreground';
+  const handleChatClick = async (patient: any) => {
+    if (patient.sessionId) {
+      // Session exists, navigate directly
+      navigate(`/chat/${patient.sessionId}`);
+    } else {
+      // Create new session and navigate
+      try {
+        const newSession = await createSession('doctor-patient', `Chat with ${patient.patientName}`, patient.patientId);
+        if (newSession) {
+          navigate(`/chat/${newSession.id}`);
+        }
+      } catch (error) {
+        console.error('Error creating chat session:', error);
+      }
+    }
   };
 
   const getInitials = (name: string) => {
@@ -122,36 +113,41 @@ const Patients = () => {
       {/* Patient Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredPatients.map((patient) => (
-          <Card key={patient.id} className="hover:shadow-md transition-shadow">
+          <Card key={patient.sessionId || patient.patientId} className="hover:shadow-md transition-shadow">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
                   <Avatar className="h-12 w-12">
                     <AvatarFallback className="bg-primary text-primary-foreground">
-                      {getInitials(patient.name)}
+                      {getInitials(patient.patientName)}
                     </AvatarFallback>
                   </Avatar>
                   <div>
-                    <CardTitle className="text-lg">{patient.name}</CardTitle>
-                    <p className="text-sm text-muted-foreground">Age: {patient.age || 'N/A'}</p>
+                    <CardTitle className="text-lg">{patient.patientName}</CardTitle>
+                    <p className="text-sm text-muted-foreground">
+                      {patient.lastMessageAt 
+                        ? `Last active: ${new Date(patient.lastMessageAt).toLocaleDateString()}`
+                        : 'No messages yet'
+                      }
+                    </p>
                   </div>
                 </div>
-                <Badge className={getStatusColor(patient)}>
-                  Active
+                <Badge className={getStatusColor(patient.status)}>
+                  {patient.status}
                 </Badge>
               </div>
             </CardHeader>
             
             <CardContent className="space-y-3">
               <p className="text-sm text-muted-foreground">
-                Registered: {new Date(patient.created_at).toLocaleDateString()}
+                Session: {patient.sessionId ? 'Active' : 'Not started'}
               </p>
 
               <div className="flex space-x-2">
                 <Button 
                   size="sm" 
                   className="flex-1"
-                  onClick={() => navigate(`/chat/${patient.id}`)}
+                  onClick={() => handleChatClick(patient)}
                 >
                   <MessageCircle className="h-4 w-4 mr-2" />
                   Chat
@@ -159,7 +155,7 @@ const Patients = () => {
                 <Button 
                   size="sm" 
                   variant="outline"
-                  onClick={() => navigate(`/patient/${patient.id}`)}
+                  onClick={() => navigate(`/patient/${patient.patientId}`)}
                 >
                   <User className="h-4 w-4 mr-2" />
                   Profile
