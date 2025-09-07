@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Send, User, Stethoscope } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
 
 type Message = Database['public']['Tables']['messages']['Row'];
@@ -14,9 +13,7 @@ type Message = Database['public']['Tables']['messages']['Row'];
 const DoctorChat = () => {
   const { user } = useAuth();
   const [newMessage, setNewMessage] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
-  const [partnerTyping, setPartnerTyping] = useState(false);
-  const [typingTimeout, setTypingTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   
   // Get or create the continuous doctor-patient chat session
   const { sessions, createSession } = useChatSessions('doctor-patient');
@@ -31,90 +28,26 @@ const DoctorChat = () => {
     }
   }, [sessions.length, createSession]);
 
-  // Set up presence for typing indicator
-  useEffect(() => {
-    if (!currentSession || !user) return;
-
-    const channel = supabase.channel(`typing_${currentSession.id}`)
-      .on('presence', { event: 'sync' }, () => {
-        const newState = channel.presenceState();
-        const otherUsers = Object.keys(newState).filter(key => key !== user.id);
-        const someoneTyping = otherUsers.some(key => {
-          const presences = newState[key] as any[];
-          return presences?.[0]?.is_typing === true;
-        });
-        setPartnerTyping(someoneTyping);
-      })
-      .on('presence', { event: 'join' }, ({ key, newPresences }) => {
-        if (key !== user.id && (newPresences as any)?.[0]?.is_typing) {
-          setPartnerTyping(true);
-        }
-      })
-      .on('presence', { event: 'leave' }, ({ key }) => {
-        if (key !== user.id) {
-          setPartnerTyping(false);
-        }
-      })
-      .subscribe(async (status) => {
-        if (status === 'SUBSCRIBED') {
-          await channel.track({ 
-            user_id: user.id,
-            is_typing: false 
-          });
-        }
-      });
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [currentSession?.id, user?.id]);
-
-  const updateTypingStatus = async (typing: boolean) => {
-    if (!currentSession || !user) return;
-    
-    const channel = supabase.channel(`typing_${currentSession.id}`);
-    await channel.track({ 
-      user_id: user.id,
-      is_typing: typing 
-    });
-    setIsTyping(typing);
-  };
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setNewMessage(e.target.value);
-    
-    if (!isTyping) {
-      updateTypingStatus(true);
-    }
-
-    // Clear existing timeout
-    if (typingTimeout) {
-      clearTimeout(typingTimeout);
-    }
-
-    // Set new timeout to stop typing after 2 seconds of inactivity
-    const newTimeout = setTimeout(() => {
-      updateTypingStatus(false);
-    }, 2000);
-    
-    setTypingTimeout(newTimeout);
-  };
-
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !currentSession) return;
 
     const messageContent = newMessage;
     setNewMessage('');
-    
-    // Stop typing indicator when sending
-    updateTypingStatus(false);
-    if (typingTimeout) {
-      clearTimeout(typingTimeout);
-      setTypingTimeout(null);
-    }
+    setIsLoading(true);
 
     // Send user message
     await sendMessage(messageContent, false);
+
+    // Mock response from the other party (in a real app, this would be real-time)
+    setTimeout(async () => {
+      const response = user?.role === 'doctor' 
+        ? 'Thank you for your message, Doctor. I appreciate your care and guidance.'
+        : 'Thank you for reaching out. I\'ll review your message and get back to you with my recommendations.';
+      
+      // This would normally come from the other user, but for demo we'll simulate it
+      await sendMessage(response, false);
+      setIsLoading(false);
+    }, 2000);
   };
 
   const getMessageStyle = (message: Message) => {
@@ -213,7 +146,7 @@ const DoctorChat = () => {
               </div>
             ))}
 
-            {partnerTyping && (
+            {isLoading && (
               <div className="flex justify-start">
                 <div className="bg-muted text-muted-foreground p-3 rounded-lg mr-12">
                   <div className="flex items-center space-x-2">
@@ -228,9 +161,7 @@ const DoctorChat = () => {
                         style={{ animationDelay: '0.2s' }}
                       ></div>
                     </div>
-                    <span className="text-xs">
-                      {user?.role === 'doctor' ? 'Patient is typing...' : 'Dr. is typing...'}
-                    </span>
+                    <span className="text-xs">Typing...</span>
                   </div>
                 </div>
               </div>
@@ -243,14 +174,15 @@ const DoctorChat = () => {
           <div className="flex space-x-2">
             <Input
               value={newMessage}
-              onChange={handleInputChange}
+              onChange={(e) => setNewMessage(e.target.value)}
               placeholder="Type your message..."
               onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+              disabled={isLoading}
               className="flex-1"
             />
             <Button
               onClick={handleSendMessage}
-              disabled={!newMessage.trim()}
+              disabled={isLoading || !newMessage.trim()}
               className="bg-primary hover:bg-primary-hover"
             >
               <Send className="h-4 w-4" />
