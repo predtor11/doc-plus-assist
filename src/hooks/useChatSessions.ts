@@ -151,7 +151,7 @@ export const useMessages = (sessionId: string | null) => {
       }
 
       console.log('Message inserted successfully:', data);
-      setMessages(prev => [...prev, data]);
+      // Don't update local state here - let realtime handle it
       return data;
     } catch (error) {
       console.error('Error sending message:', error);
@@ -162,6 +162,34 @@ export const useMessages = (sessionId: string | null) => {
   useEffect(() => {
     if (sessionId) {
       fetchMessages();
+
+      // Set up real-time subscription
+      const channel = supabase
+        .channel(`messages_${sessionId}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'messages',
+            filter: `session_id=eq.${sessionId}`,
+          },
+          (payload) => {
+            const newMessage = payload.new as Message;
+            setMessages((prev) => {
+              // Avoid duplicates
+              if (prev.find((msg) => msg.id === newMessage.id)) {
+                return prev;
+              }
+              return [...prev, newMessage];
+            });
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
     } else {
       setMessages([]);
     }
