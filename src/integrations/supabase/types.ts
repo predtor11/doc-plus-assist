@@ -83,6 +83,7 @@ export type Database = {
           created_at: string
           id: string
           is_ai_message: boolean | null
+          is_read: boolean | null
           sender_id: string | null
           session_id: string
         }
@@ -91,6 +92,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_ai_message?: boolean | null
+          is_read?: boolean | null
           sender_id?: string | null
           session_id: string
         }
@@ -99,6 +101,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_ai_message?: boolean | null
+          is_read?: boolean | null
           sender_id?: string | null
           session_id?: string
         }

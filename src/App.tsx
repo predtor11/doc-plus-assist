@@ -11,6 +11,7 @@ import DoctorDashboard from "./pages/DoctorDashboard";
 import PatientDashboard from "./pages/PatientDashboard";
 import AIChat from "./pages/AIChat";
 import DoctorChat from "./pages/DoctorChat";
+import PatientDoctorChat from "./pages/PatientDoctorChat";
 import PatientRegistration from "./pages/PatientRegistration";
 
 import Patients from "./pages/Patients";
@@ -96,7 +97,7 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <DashboardLayout>
-              <DoctorChat />
+              {user?.role === 'doctor' ? <DoctorChat /> : <PatientDoctorChat />}
             </DashboardLayout>
           </ProtectedRoute>
         }
