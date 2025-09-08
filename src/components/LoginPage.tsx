@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { Stethoscope, User, Lock, Mail } from 'lucide-react';
+import AuthDebugPanel from './AuthDebugPanel';
 
 const LoginPage = () => {
   const [email, setEmail] = useState('');
@@ -256,6 +257,9 @@ const LoginPage = () => {
             </TabsContent>
           </Tabs>
         </Card>
+        
+        {/* Debug Panel - Only show in development */}
+        {import.meta.env.DEV && <AuthDebugPanel />}
       </div>
     </div>
   );

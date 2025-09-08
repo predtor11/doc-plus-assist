@@ -58,92 +58,219 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    console.log('🏁 AuthContext: Initializing auth state');
+    
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('🔐 AuthContext: Auth state changed:', { 
+          event, 
+          sessionExists: !!session,
+          userId: session?.user?.id,
+          browser: navigator.userAgent.includes('Chrome') ? 'Chrome' : 'Other'
+        });
+        
         setSession(session);
         
         if (session?.user) {
-          // Try to fetch doctor profile first
-          const { data: doctorProfile } = await supabase
-            .from('doctors')
-            .select('*')
-            .eq('user_id', session.user.id)
-            .single();
-          
-          if (doctorProfile) {
-            setUser({
-              ...doctorProfile,
-              email: session.user.email,
-              role: 'doctor',
-            });
-          } else {
-            // Try to fetch patient profile
-            const { data: patientProfile } = await supabase
-              .from('patients')
-              .select('*')
-              .eq('user_id', session.user.id)
-              .single();
-            
-            if (patientProfile) {
-              setUser({
-                ...patientProfile,
-                email: session.user.email || patientProfile.email,
-                role: 'patient',
-                username: patientProfile.name, // patients don't have username, use name
-              });
-            } else {
-              setUser(null);
-            }
-          }
+          await loadUserProfile(session.user.id, session.user.email);
+        } else {
+          console.log('📝 No session, clearing user and stopping loading');
+          setUser(null);
+          setIsLoading(false);
         }
-        setIsLoading(false);
       }
     );
 
-    // Check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (session?.user) {
-        // Try to fetch doctor profile first
-        supabase
-          .from('doctors')
-          .select('*')
-          .eq('user_id', session.user.id)
-          .single()
-          .then(async ({ data: doctorProfile }) => {
-            if (doctorProfile) {
-              setUser({
-                ...doctorProfile,
-                email: session.user.email,
-                role: 'doctor',
-              });
-            } else {
-              // Try to fetch patient profile
-              const { data: patientProfile } = await supabase
-                .from('patients')
-                .select('*')
-                .eq('user_id', session.user.id)
-                .single();
-              
-              if (patientProfile) {
-                setUser({
-                  ...patientProfile,
-                  email: session.user.email || patientProfile.email,
-                  role: 'patient',
-                  username: patientProfile.name,
-                });
-              }
-            }
-            setIsLoading(false);
-          });
-      } else {
+    // Check for existing session with timeout protection
+    const checkInitialSession = async () => {
+      try {
+        console.log('🔍 Checking for existing session...');
+        
+        // Set a timeout to prevent infinite loading
+        const timeoutId = setTimeout(() => {
+          console.warn('⏰ Session check timeout - stopping loading state');
+          setIsLoading(false);
+        }, 10000); // 10 second timeout
+        
+        const { data: { session }, error } = await supabase.auth.getSession();
+        clearTimeout(timeoutId);
+        
+        if (error) {
+          console.error('❌ Error getting session:', error);
+          setIsLoading(false);
+          return;
+        }
+        
+        console.log('📊 Initial session check result:', { 
+          sessionExists: !!session,
+          userId: session?.user?.id,
+          expiresAt: session?.expires_at ? new Date(session.expires_at * 1000).toISOString() : null
+        });
+        
+        setSession(session);
+        if (session?.user) {
+          await loadUserProfile(session.user.id, session.user.email);
+        } else {
+          console.log('📝 No initial session found');
+          setIsLoading(false);
+        }
+      } catch (error) {
+        console.error('❌ Unexpected error checking session:', error);
         setIsLoading(false);
       }
-    });
+    };
 
-    return () => subscription.unsubscribe();
+    checkInitialSession();
+
+    return () => {
+      console.log('🧹 Cleaning up auth subscription');
+      subscription.unsubscribe();
+    };
   }, []);
+
+  const loadUserProfile = async (userId: string, email?: string) => {
+    try {
+      console.log('👤 Loading user profile for:', userId);
+      console.log('📧 Email:', email);
+      
+      // Set a timeout to prevent infinite loading on profile fetch
+      const timeoutId = setTimeout(() => {
+        console.warn('⏰ Profile loading timeout - stopping loading state');
+        setUser(null);
+        setIsLoading(false);
+      }, 8000); // 8 second timeout
+      
+      console.log('🔍 Querying doctors table...');
+      // Try to fetch doctor profile first with explicit error handling and timeout
+      const doctorQuery = supabase
+        .from('doctors')
+        .select('*')
+        .eq('user_id', userId)
+        .single();
+        
+      console.log('📊 Doctor query created, executing...');
+      
+      // Add a race condition with our own timeout for the query
+      const queryTimeout = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Query timeout after 5 seconds')), 5000);
+      });
+      
+      let doctorProfile, doctorError;
+      try {
+        const result = await Promise.race([doctorQuery, queryTimeout]);
+        // TypeScript workaround - we know this is the query result
+        const queryResult = result as { data: any; error: any };
+        doctorProfile = queryResult.data;
+        doctorError = queryResult.error;
+      } catch (timeoutError) {
+        console.error('❌ Doctor query timed out:', timeoutError);
+        doctorError = timeoutError;
+      }
+      
+      console.log('📋 Doctor query result:', {
+        hasData: !!doctorProfile,
+        error: doctorError?.message,
+        errorCode: doctorError?.code,
+        errorDetails: doctorError?.details,
+        timedOut: doctorError?.message?.includes('timeout')
+      });
+
+      if (doctorProfile && !doctorError) {
+        console.log('👨‍⚕️ Doctor profile loaded successfully:', {
+          id: doctorProfile.id,
+          name: doctorProfile.name,
+          username: doctorProfile.username
+        });
+        clearTimeout(timeoutId);
+        setUser({
+          ...doctorProfile,
+          email: email,
+          role: 'doctor',
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      console.log('🔍 Doctor profile not found, checking for patient profile...');
+      console.log('📊 Patient query executing...');
+
+      // Try to fetch patient profile with explicit error handling and timeout
+      const patientQuery = supabase
+        .from('patients')
+        .select('*')
+        .eq('user_id', userId)
+        .single();
+        
+      // Add a race condition with our own timeout for the patient query
+      const patientQueryTimeout = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Patient query timeout after 5 seconds')), 5000);
+      });
+      
+      let patientProfile, patientError;
+      try {
+        const result = await Promise.race([patientQuery, patientQueryTimeout]);
+        // TypeScript workaround - we know this is the query result
+        const queryResult = result as { data: any; error: any };
+        patientProfile = queryResult.data;
+        patientError = queryResult.error;
+      } catch (timeoutError) {
+        console.error('❌ Patient query timed out:', timeoutError);
+        patientError = timeoutError;
+      }
+      
+      console.log('📋 Patient query result:', {
+        hasData: !!patientProfile,
+        error: patientError?.message,
+        errorCode: patientError?.code,
+        errorDetails: patientError?.details,
+        timedOut: patientError?.message?.includes('timeout')
+      });
+      
+      clearTimeout(timeoutId);
+
+      if (patientProfile && !patientError) {
+        console.log('🏥 Patient profile loaded successfully:', {
+          id: patientProfile.id,
+          name: patientProfile.name
+        });
+        setUser({
+          ...patientProfile,
+          email: email || patientProfile.email,
+          role: 'patient',
+          username: patientProfile.name,
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      // If we get here, no profile was found
+      console.warn('⚠️ No profile found for user:', userId, {
+        doctorError: doctorError?.message,
+        patientError: patientError?.message,
+        possibleCauses: [
+          'User profile not created in database',
+          'RLS (Row Level Security) blocking access',
+          'Network connectivity issue',
+          'Database permission problem'
+        ]
+      });
+      
+      // Even if no profile is found, stop loading to prevent infinite state
+      setUser(null);
+      setIsLoading(false);
+      
+    } catch (error) {
+      console.error('❌ Unexpected error loading user profile:', error);
+      console.error('Error details:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack
+      });
+      setUser(null);
+      setIsLoading(false);
+    }
+  };
 
   const login = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({

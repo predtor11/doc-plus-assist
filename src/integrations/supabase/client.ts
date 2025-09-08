@@ -56,6 +56,8 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     storage: localStorage,
     persistSession: true,
     autoRefreshToken: true,
+    detectSessionInUrl: true,
+    flowType: 'pkce'
   },
   global: {
     fetch: customFetch,
@@ -68,4 +70,26 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
       eventsPerSecond: 10,
     },
   },
+});
+
+// Add debugging for authentication state
+supabase.auth.onAuthStateChange((event, session) => {
+  console.log('🔐 Auth state change:', {
+    event,
+    sessionExists: !!session,
+    userId: session?.user?.id,
+    userEmail: session?.user?.email,
+    browser: navigator.userAgent.includes('Chrome') ? 'Chrome' : 'Other',
+    timestamp: new Date().toISOString()
+  });
+  
+  if (event === 'SIGNED_OUT') {
+    console.log('🚪 User signed out, clearing local storage');
+    // Clear any cached data
+    localStorage.removeItem('user-profile-cache');
+  }
+  
+  if (event === 'TOKEN_REFRESHED') {
+    console.log('🔄 Token refreshed successfully');
+  }
 });

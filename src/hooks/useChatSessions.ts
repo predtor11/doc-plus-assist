@@ -96,8 +96,12 @@ export const useMessages = (sessionId: string | null) => {
   const [loading, setLoading] = useState(false);
 
   const fetchMessages = async () => {
-    if (!sessionId) return;
+    if (!sessionId) {
+      console.log('fetchMessages: No sessionId provided');
+      return;
+    }
 
+    console.log('fetchMessages: Fetching messages for session:', sessionId);
     setLoading(true);
     try {
       const { data, error } = await supabase
@@ -106,38 +110,81 @@ export const useMessages = (sessionId: string | null) => {
         .eq('session_id', sessionId)
         .order('created_at', { ascending: true });
 
-      if (error) throw error;
+      if (error) {
+        console.error('fetchMessages: Error fetching messages:', error);
+        throw error;
+      }
+      
+      console.log('fetchMessages: Retrieved', data?.length || 0, 'messages from database');
       setMessages(data || []);
     } catch (error) {
-      console.error('Error fetching messages:', error);
+      console.error('fetchMessages: Error fetching messages:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const sendMessage = async (content: string, isAiMessage = false) => {
+  const sendMessage = async (content: string, isAiMessage = false, onSuccess?: () => void) => {
     if (!sessionId) {
       console.error('No sessionId provided to sendMessage');
       return null;
     }
 
-    console.log('sendMessage called with:', { content, isAiMessage, sessionId });
+    console.log('sendMessage called with:', { 
+      content: content.substring(0, 100) + '...', 
+      isAiMessage, 
+      sessionId,
+      contentLength: content.length,
+      hasContent: !!content
+    });
+
+    // Verify session exists
+    try {
+      const { data: sessionData, error: sessionError } = await supabase
+        .from('chat_sessions')
+        .select('id')
+        .eq('id', sessionId)
+        .single();
+
+      if (sessionError || !sessionData) {
+        console.error('Session validation failed:', { sessionError, sessionData, sessionId });
+        return null;
+      }
+      console.log('Session validated successfully');
+    } catch (sessionCheckError) {
+      console.error('Error validating session:', sessionCheckError);
+      return null;
+    }
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      console.log('Auth user:', user);
-      if (!user) {
-        console.error('No authenticated user found');
-        return null;
+      let userId = null;
+      
+      if (!isAiMessage) {
+        // Only get authenticated user for non-AI messages
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        console.log('Auth user result:', { user: user?.id, error: authError });
+        if (authError) {
+          console.error('Auth error:', authError);
+          return null;
+        }
+        if (!user) {
+          console.error('No authenticated user found');
+          return null;
+        }
+        userId = user.id;
       }
 
       const messageData = {
         session_id: sessionId,
-        sender_id: user.id,
+        sender_id: userId, // null for AI messages, user.id for regular messages
         content,
         is_ai_message: isAiMessage,
       };
       console.log('Inserting message data:', messageData);
+      console.log('Message content length:', content.length);
+      console.log('Is AI message:', isAiMessage);
+      console.log('User ID:', userId);
+      console.log('Session ID:', sessionId);
 
       const { data, error } = await supabase
         .from('messages')
@@ -146,12 +193,62 @@ export const useMessages = (sessionId: string | null) => {
         .single();
 
       if (error) {
-        console.error('Database error inserting message:', error);
+        console.error('❌ Database error inserting message:', {
+          error,
+          messageData,
+          code: error.code,
+          details: error.details,
+          hint: error.hint,
+          message: error.message
+        });
+        
+        // Check for specific RLS policy errors
+        if (error.code === '42501' || error.message?.includes('policy')) {
+          console.error('🔒 RLS Policy Error: This might be due to missing or incorrect row-level security policies');
+          console.error('💡 Suggested fix: Check if the messages RLS policy allows AI messages (sender_id = null)');
+        }
+        
         throw error;
       }
 
-      console.log('Message inserted successfully:', data);
-      setMessages(prev => [...prev, data]);
+      console.log('✅ Message inserted successfully:', data);
+      console.log('Message details:', {
+        id: data.id,
+        is_ai_message: data.is_ai_message,
+        sender_id: data.sender_id,
+        content_length: data.content.length,
+        session_id: data.session_id
+      });
+      
+      setMessages(prev => {
+        console.log('📝 IMMEDIATE STATE UPDATE - Updating messages state, previous count:', prev.length);
+        
+        // Check if this message already exists to prevent duplicates
+        const messageExists = prev.some(msg => msg.id === data.id);
+        if (messageExists) {
+          console.log('⚠️ Message already exists in state, skipping duplicate');
+          return prev;
+        }
+        
+        const newMessages = [...prev, data];
+        console.log('📝 IMMEDIATE STATE UPDATE - New messages count:', newMessages.length);
+        console.log('📝 IMMEDIATE STATE UPDATE - Adding message:', {
+          id: data.id,
+          is_ai: data.is_ai_message,
+          sender: data.sender_id,
+          preview: data.content.substring(0, 50) + '...'
+        });
+        
+        // Force re-render by returning new array reference
+        const finalMessages = [...newMessages];
+        
+        // Call success callback if provided
+        if (onSuccess) {
+          setTimeout(() => onSuccess(), 50);
+        }
+        
+        return finalMessages;
+      });
       return data;
     } catch (error) {
       console.error('Error sending message:', error);
@@ -160,17 +257,29 @@ export const useMessages = (sessionId: string | null) => {
   };
 
   useEffect(() => {
+    console.log('useMessages useEffect triggered, sessionId:', sessionId);
     if (sessionId) {
+      console.log('Fetching initial messages for session:', sessionId);
       fetchMessages();
     } else {
+      console.log('No sessionId, clearing messages');
       setMessages([]);
     }
   }, [sessionId]);
+
+  // Disable automatic refetching to prevent state override
+  // Only fetch messages on initial load or manual refresh
+  const refreshMessages = () => {
+    if (sessionId) {
+      fetchMessages();
+    }
+  };
 
   return {
     messages,
     loading,
     sendMessage,
     fetchMessages,
+    refreshMessages,
   };
 };
