@@ -3,14 +3,16 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Send, Bot, User, Stethoscope, AtSign, Upload, File, X, Image, FileText, Paperclip, ChevronUp, ChevronDown, Plus } from 'lucide-react';
+import { Send, Bot, User, Stethoscope, AtSign, Upload, File, X, Image, FileText, Paperclip, ChevronUp, ChevronDown, Plus, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMessages } from '@/hooks/useChatSessions';
+import { useLMStudio } from '@/hooks/useLMStudio';
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import FileUpload, { UploadedFile } from './FileUpload';
+import { LMStudioInstructions } from './LMStudioInstructions';
 
 type ChatSession = Database['public']['Tables']['chat_sessions']['Row'];
 type Message = Database['public']['Tables']['messages']['Row'];
@@ -37,6 +39,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ session, onSessionUpdate, onNew
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
   const { messages, sendMessage, refreshMessages } = useMessages(session?.id || null);
+  const { status: lmStudioStatus, isChecking: isCheckingLMStudio, checkLMStudioStatus, sendChatCompletion } = useLMStudio();
 
   // Debug: Monitor messages changes
   useEffect(() => {
@@ -203,26 +206,7 @@ Patient Context:
   };
 
   const testLMStudioConnection = async () => {
-    try {
-      console.log('Testing LM Studio connection...');
-      const response = await fetch(`/api/lm-studio/v1/models`, {
-        method: 'GET',
-      });
-      console.log('LM Studio models endpoint response:', response.status);
-      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
-      
-      if (response.ok) {
-        const data = await response.json();
-        console.log('Available models:', data);
-        return true;
-      } else {
-        console.error('Connection failed with status:', response.status);
-        return false;
-      }
-    } catch (error) {
-      console.error('LM Studio connection test failed:', error);
-      return false;
-    }
+    return await checkLMStudioStatus();
   };
 
   const handleTestConnection = async () => {
@@ -242,48 +226,29 @@ Patient Context:
       const testMessages = [
         { role: 'user', content: 'Hello, can you help me?' }
       ];
-      
-      console.log('Sending simple test request...');
-      const response = await fetch(`/api/lm-studio/v1/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          messages: testMessages,
-          max_tokens: 100,
-          temperature: 0.7,
-        }),
-      });
 
-      console.log('Test response status:', response.status);
-      
-      if (response.ok) {
-        const data = await response.json();
-        console.log('Test response data:', data);
-        console.log('Test response structure:', JSON.stringify(data, null, 2));
-        
-        // Try to extract content
-        let testContent = '';
-        if (data.choices && data.choices[0] && data.choices[0].message) {
-          testContent = data.choices[0].message.content;
-        } else if (data.content) {
-          testContent = data.content;
-        } else if (data.response) {
-          testContent = data.response;
-        }
-        
-        console.log('Extracted test content:', testContent);
-        
-        if (testContent) {
-          await sendMessage(`TEST RESPONSE: ${testContent}`, true);
-        } else {
-          await sendMessage('TEST: Could not extract content from response', true);
-        }
+      console.log('Sending simple test request...');
+      const data = await sendChatCompletion(testMessages, 'local-model');
+
+      console.log('Test response data:', data);
+      console.log('Test response structure:', JSON.stringify(data, null, 2));
+
+      // Try to extract content
+      let testContent = '';
+      if (data.choices && data.choices[0] && data.choices[0].message) {
+        testContent = data.choices[0].message.content;
+      } else if (data.content) {
+        testContent = data.content;
+      } else if (data.response) {
+        testContent = data.response;
+      }
+
+      console.log('Extracted test content:', testContent);
+
+      if (testContent) {
+        await sendMessage(`TEST RESPONSE: ${testContent}`, true);
       } else {
-        const errorText = await response.text();
-        console.error('Test failed:', errorText);
-        await sendMessage(`TEST FAILED: ${response.status} - ${errorText}`, true);
+        await sendMessage('TEST: Could not extract content from response', true);
       }
     } catch (error) {
       console.error('Test error:', error);
@@ -305,17 +270,6 @@ Patient Context:
       fetchPatients();
     }
   }, [user]);
-
-  useEffect(() => {
-    // Test LM Studio connection on component mount for AI sessions
-    if (session?.session_type.includes('ai')) {
-      testLMStudioConnection().then(isConnected => {
-        if (!isConnected) {
-          setError('LM Studio is not reachable. Please ensure LM Studio is running on 127.0.0.1:1234');
-        }
-      });
-    }
-  }, [session]);
 
   useEffect(() => {
     // Handle patient mention detection
@@ -515,6 +469,16 @@ Patient Context:
 
     setIsGeneratingAI(true);
 
+    // Check LM Studio connection for AI sessions
+    if (session?.session_type === 'ai' && !lmStudioStatus.isConnected) {
+      console.error('❌ LM Studio not connected, cannot generate AI response');
+      setError('❌ Cannot generate AI response: LM Studio is not connected. Please ensure LM Studio is running locally on 127.0.0.1:1234');
+      setIsGeneratingAI(false);
+      setIsLoading(false);
+      clearTimeout(loadingTimeout);
+      return;
+    }
+
     try {
       // Build conversation history including the user message that was just sent
       // We need to get fresh messages or build the context manually
@@ -651,7 +615,7 @@ ${fileContext ? 'Always consider the attached files in your analysis and respons
       console.log('System prompt preview:', systemPrompt.substring(0, 200) + '...');
       console.log('Final messages with system prompt:', messagesWithSystem);
 
-      console.log('🚀 Attempting to connect to LM Studio at:', `/api/lm-studio/v1/chat/completions`);
+      console.log('🚀 Attempting to connect to LM Studio at:', `http://127.0.0.1:1234/v1/chat/completions`);
       console.log('Request payload preview:', {
         messageCount: messagesWithSystem.length,
         lastMessage: messagesWithSystem[messagesWithSystem.length - 1]?.content?.substring(0, 100) + '...',
@@ -670,56 +634,15 @@ ${fileContext ? 'Always consider the attached files in your analysis and respons
         console.error('❌ Last message is not a valid user message:', lastUserMessage);
         throw new Error('Invalid last message for AI response');
       }
-      
-      let response;
-      try {
-        response = await fetch(`/api/lm-studio/v1/chat/completions`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            messages: messagesWithSystem,
-            max_tokens: 1000,
-            temperature: 0.7,
-          }),
-        });
-      } catch (firstAttemptError) {
-        console.log('First endpoint failed, trying alternative endpoint...');
-        try {
-          response = await fetch(`/api/lm-studio/v1/completions`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              prompt: messagesWithSystem.map(m => `${m.role}: ${m.content}`).join('\n'),
-              max_tokens: 1000,
-              temperature: 0.7,
-            }),
-          });
-        } catch (secondAttemptError) {
-          console.error('Both endpoints failed:', { firstAttemptError, secondAttemptError });
-          throw firstAttemptError; // Throw the original error
-        }
-      }
 
-      console.log('LM Studio response status:', response.status);
-      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('LM Studio error response:', errorText);
-        throw new Error(`LM Studio API error: ${response.status} - ${errorText}`);
-      }
-
-      const data = await response.json();
+      // Use the new LM Studio hook to send the chat completion
+      const data = await sendChatCompletion(messagesWithSystem, 'local-model');
       console.log('LM Studio response data:', data);
       console.log('Full response structure:', JSON.stringify(data, null, 2));
-      
+
       // Try different response formats that LM Studio might use
       let aiResponse = '';
-      
+
       // Check if response is an array (some models return arrays)
       if (Array.isArray(data)) {
         console.log('Response is an array, using first item');
@@ -732,13 +655,13 @@ ${fileContext ? 'Always consider the attached files in your analysis and respons
           aiResponse = firstItem.text;
         }
       }
-      
+
       // Handle single object with role/content structure (like the user's example)
       if (!aiResponse && data.role === 'assistant' && data.content) {
         console.log('Found assistant role with content field');
         aiResponse = data.content;
       }
-      
+
       // OpenAI-style format
       if (!aiResponse && data.choices && data.choices[0]) {
         if (data.choices[0].message && data.choices[0].message.content) {
@@ -970,6 +893,51 @@ ${fileContext ? 'Always consider the attached files in your analysis and respons
             {error}
           </div>
         )}
+
+        {/* LM Studio Status */}
+        {session?.session_type === 'ai' && (
+          <div className="mt-2 p-3 bg-muted/50 border border-muted rounded">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                {isCheckingLMStudio ? (
+                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                ) : lmStudioStatus.isConnected ? (
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                ) : (
+                  <AlertCircle className="h-4 w-4 text-orange-500" />
+                )}
+                <span className="text-sm font-medium">
+                  LM Studio: {isCheckingLMStudio ? 'Checking...' : lmStudioStatus.isConnected ? 'Connected' : 'Not Connected'}
+                </span>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={checkLMStudioStatus}
+                disabled={isCheckingLMStudio}
+                className="text-xs"
+              >
+                {isCheckingLMStudio ? 'Checking...' : 'Check Status'}
+              </Button>
+            </div>
+
+            {!lmStudioStatus.isConnected && !isCheckingLMStudio && (
+              <div className="mt-3">
+                <LMStudioInstructions
+                  onCheckConnection={checkLMStudioStatus}
+                  isChecking={isCheckingLMStudio}
+                />
+              </div>
+            )}
+
+            {lmStudioStatus.isConnected && lmStudioStatus.models && lmStudioStatus.models.length > 0 && (
+              <div className="text-xs text-muted-foreground">
+                <p><strong>Available models:</strong> {lmStudioStatus.models.join(', ')}</p>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Debug Info */}
         <div className="mt-2 p-2 bg-muted/50 border border-muted rounded text-xs text-muted-foreground">
           Debug: {messages.length} messages | Loading: {isLoading ? 'Yes' : 'No'} | Session: {session?.id || 'None'}
