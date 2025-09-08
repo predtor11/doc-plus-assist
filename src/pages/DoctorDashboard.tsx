@@ -1,10 +1,12 @@
 import React from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 
 const DoctorDashboard = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const recentPatients = [
     { id: '1', name: 'John Doe', lastSeen: '2 hours ago', status: 'Active' },
@@ -18,7 +20,7 @@ const DoctorDashboard = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold text-foreground">Doctor Dashboard</h1>
-        <p className="text-muted-foreground">Welcome back, Dr. Smith</p>
+        <p className="text-muted-foreground">Welcome back, Dr. {user?.name || 'Doctor'}</p>
       </div>
 
       

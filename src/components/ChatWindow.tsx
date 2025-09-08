@@ -3,9 +3,12 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Send, Bot, User, Stethoscope } from 'lucide-react';
+import { Send, Bot, User, Stethoscope, MessageCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMessages } from '@/hooks/useChatSessions';
+import { supabase } from '@/integrations/supabase/client';
+import { ChatAPI } from '@/integrations/supabase/chat-api';
+import { useToast } from '@/hooks/use-toast';
 import type { Database } from '@/integrations/supabase/types';
 
 type ChatSession = Database['public']['Tables']['chat_sessions']['Row'];
@@ -23,7 +26,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ session, onSessionUpdate, onNew
   const [error, setError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
-  const { messages, sendMessage } = useMessages(session?.id || null);
+  const { toast } = useToast();
+  const { messages, sendMessage, fetchMessages } = useMessages(session?.id || null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -78,79 +82,84 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ session, onSessionUpdate, onNew
     }
   }, [session]);
 
+  // Mark messages as read when session changes or new messages arrive
+  useEffect(() => {
+    if (session?.id && user?.id && messages.length > 0) {
+      const markAsRead = async () => {
+        const { error } = await ChatAPI.markMessagesAsRead(session.id, user.user_id);
+        if (error) {
+          console.warn('Failed to mark messages as read:', error.message);
+        }
+      };
+      markAsRead();
+    }
+  }, [session?.id, user?.id, messages.length]);
+
+  // Real-time subscription for messages
+  useEffect(() => {
+    if (!session?.id) return;
+
+    const channel = supabase
+      .channel(`messages:${session.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+          filter: `session_id=eq.${session.id}`,
+        },
+        (payload) => {
+          console.log('New message received:', payload);
+          // Refetch messages to ensure consistency
+          fetchMessages();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [session?.id]);
+
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !session) return;
-
-    console.log('Sending message:', newMessage);
-    console.log('Current user:', user);
-    console.log('Session:', session);
 
     const messageContent = newMessage;
     setNewMessage('');
     setIsLoading(true);
-    setError(null); // Clear any previous errors
-
-    // Send user message
-    console.log('Calling sendMessage for user message...');
-    const userMessage = await sendMessage(messageContent, false);
-    console.log('User message result:', userMessage);
+    setError(null);
 
     try {
-      // Prepare conversation history for context
-      const conversationMessages = messages.map(msg => ({
-        role: msg.is_ai_message ? 'assistant' : 'user',
-        content: msg.content,
-      }));
+      const { data: sentMessage, error: sendError } = await ChatAPI.sendMessage(
+        session.id,
+        messageContent,
+        user?.id || '' // Use auth user ID
+      );
 
-      // Add the current user message
-      conversationMessages.push({
-        role: 'user',
-        content: messageContent,
-      });
-
-      // Call LM Studio API
-      console.log('Attempting to connect to LM Studio at:', `/api/lm-studio/v1/chat/completions`);
-      console.log('Request payload:', {
-        messages: conversationMessages,
-        max_tokens: 500,
-        temperature: 0.7,
-      });
-      
-      const response = await fetch(`/api/lm-studio/v1/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          messages: conversationMessages,
-          max_tokens: 500,
-          temperature: 0.7,
-        }),
-      });
-
-      console.log('LM Studio response status:', response.status);
-      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('LM Studio error response:', errorText);
-        throw new Error(`LM Studio API error: ${response.status} - ${errorText}`);
+      if (sendError) {
+        toast({
+          title: "Failed to send message",
+          description: sendError.message,
+          variant: "destructive",
+        });
+        setNewMessage(messageContent);
+        return;
       }
 
-      const data = await response.json();
-      console.log('LM Studio response data:', data);
-      const aiResponse = data.choices?.[0]?.message?.content || 'Sorry, I couldn\'t generate a response.';
-
-      await sendMessage(aiResponse, true);
-      setError(null); // Clear error on successful response
-    } catch (error) {
-      console.error('Error calling LM Studio:', error);
-      console.error('Error details:', {
-        message: error.message,
-        stack: error.stack,
-        name: error.name
+      toast({
+        title: "Message sent",
+        description: "Your message has been delivered.",
       });
-      const errorMessage = 'Sorry, I\'m having trouble connecting to the AI service. Please check that LM Studio is running and accessible at 127.0.0.1:1234. You can also use the "Test LM Studio" button to diagnose the connection.';
-      await sendMessage(errorMessage, true);
+
+    } catch (error) {
+      console.error('Error sending message:', error);
+      toast({
+        title: "Network Error",
+        description: "Failed to send message. Please check your connection and try again.",
+        variant: "destructive",
+      });
+      setNewMessage(messageContent);
     } finally {
       setIsLoading(false);
       onSessionUpdate?.();
@@ -160,7 +169,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ session, onSessionUpdate, onNew
   const getMessageIcon = (message: Message) => {
     if (message.is_ai_message) {
       return <Bot className="h-4 w-4" />;
-    } else if (message.sender_id === user?.user_id) {
+    } else if (message.sender_id === user?.id) {
       return <User className="h-4 w-4" />;
     } else {
       return <Stethoscope className="h-4 w-4" />;
@@ -168,7 +177,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ session, onSessionUpdate, onNew
   };
 
   const getMessageStyle = (message: Message) => {
-    if (message.sender_id === user?.user_id) {
+    if (message.sender_id === user?.id) {
       return 'bg-primary text-primary-foreground ml-16';
     } else if (message.is_ai_message) {
       return 'bg-accent text-accent-foreground mr-16 border border-accent/30';
@@ -180,7 +189,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ session, onSessionUpdate, onNew
   const getSenderName = (message: Message) => {
     if (message.is_ai_message) {
       return session?.session_type === 'ai-doctor' ? 'AI Assistant' : 'AI Support';
-    } else if (message.sender_id === user?.user_id) {
+    } else if (message.sender_id === user?.id) {
       return 'You';
     } else {
       return user?.role === 'doctor' ? 'Patient' : 'Doctor';
@@ -191,20 +200,20 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ session, onSessionUpdate, onNew
     return (
       <div className="flex-1 flex items-center justify-center bg-background">
         <div className="text-center max-w-md">
-          <Bot className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+          <Stethoscope className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
           <h3 className="text-lg font-medium text-muted-foreground mb-2">
-            Welcome to Doc+ AI Assistant
+            Select a Patient to Start Chatting
           </h3>
           <p className="text-sm text-muted-foreground mb-6">
-            Get instant help from our AI assistant. Start a conversation to begin.
+            Choose a patient from the sidebar to begin a conversation and provide care.
           </p>
           {onNewSession && (
             <Button
               onClick={onNewSession}
-              className="bg-gradient-primary hover:opacity-90"
+              className="bg-primary hover:bg-primary-hover"
             >
-              <Bot className="h-4 w-4 mr-2" />
-              Start New Conversation
+              <MessageCircle className="h-4 w-4 mr-2" />
+              Start New Chat
             </Button>
           )}
         </div>
@@ -269,7 +278,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ session, onSessionUpdate, onNew
             <div
               key={message.id}
               className={`flex ${
-                message.sender_id === user?.user_id ? 'justify-end' : 'justify-start'
+                message.sender_id === user?.id ? 'justify-end' : 'justify-start'
               }`}
             >
               <div className={`max-w-[80%] p-3 rounded-lg ${getMessageStyle(message)}`}>
