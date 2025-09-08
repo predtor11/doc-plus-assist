@@ -62,7 +62,7 @@ const DoctorChat = () => {
     if (message.sender_id === user?.id) {
       return 'You';
     } else {
-      return user?.role === 'doctor' ? 'Patient' : 'Dr. Sarah Smith';
+      return user?.role === 'doctor' ? 'Patient' : 'Your Doctor';
     }
   };
 
@@ -109,7 +109,7 @@ const DoctorChat = () => {
             </div>
             <div>
               <h3 className="font-semibold text-card-foreground">
-                {user?.role === 'doctor' ? 'Patient Communication' : 'Dr. Sarah Smith'}
+                {user?.role === 'doctor' ? 'Patient Communication' : 'Doctor Communication'}
               </h3>
               <p className="text-xs text-muted-foreground">
                 Continuous chat - your conversation continues from where you left off

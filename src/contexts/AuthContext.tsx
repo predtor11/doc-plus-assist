@@ -73,9 +73,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           
           if (doctorProfile) {
             setUser({
-              ...doctorProfile,
+              id: session.user.id, // Auth user ID
+              user_id: doctorProfile.id, // Profile record ID
+              username: doctorProfile.username,
+              name: doctorProfile.name,
               email: session.user.email,
               role: 'doctor',
+              registration_no: doctorProfile.registration_no,
             });
           } else {
             // Try to fetch patient profile
@@ -87,10 +91,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             
             if (patientProfile) {
               setUser({
-                ...patientProfile,
+                id: session.user.id, // Auth user ID
+                user_id: patientProfile.id, // Profile record ID
+                name: patientProfile.name,
                 email: session.user.email || patientProfile.email,
                 role: 'patient',
-                username: patientProfile.name, // patients don't have username, use name
+                age: patientProfile.age,
+                gender: patientProfile.gender,
+                phone: patientProfile.phone,
+                medical_history: patientProfile.medical_history,
+                assigned_doctor_id: patientProfile.assigned_doctor_id,
               });
             } else {
               setUser(null);
@@ -114,9 +124,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           .then(async ({ data: doctorProfile }) => {
             if (doctorProfile) {
               setUser({
-                ...doctorProfile,
+                id: session.user.id, // Auth user ID
+                user_id: doctorProfile.id, // Profile record ID
+                username: doctorProfile.username,
+                name: doctorProfile.name,
                 email: session.user.email,
                 role: 'doctor',
+                registration_no: doctorProfile.registration_no,
               });
             } else {
               // Try to fetch patient profile
@@ -128,10 +142,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               
               if (patientProfile) {
                 setUser({
-                  ...patientProfile,
+                  id: session.user.id, // Auth user ID
+                  user_id: patientProfile.id, // Profile record ID
+                  name: patientProfile.name,
                   email: session.user.email || patientProfile.email,
                   role: 'patient',
-                  username: patientProfile.name,
+                  age: patientProfile.age,
+                  gender: patientProfile.gender,
+                  phone: patientProfile.phone,
+                  medical_history: patientProfile.medical_history,
+                  assigned_doctor_id: patientProfile.assigned_doctor_id,
                 });
               }
             }

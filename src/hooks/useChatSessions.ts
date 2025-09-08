@@ -18,7 +18,7 @@ export const useChatSessions = (sessionType?: string) => {
       let query = supabase
         .from('chat_sessions')
         .select('*')
-        .or(`participant_1_id.eq.${user.user_id},participant_2_id.eq.${user.user_id}`)
+        .or(`participant_1_id.eq.${user.id},participant_2_id.eq.${user.id}`) // Use auth user ID
         .order('last_message_at', { ascending: false });
 
       if (sessionType) {
@@ -42,7 +42,7 @@ export const useChatSessions = (sessionType?: string) => {
     try {
       const sessionData = {
         session_type: sessionType,
-        participant_1_id: user.user_id,
+        participant_1_id: user.id, // Use auth user ID
         participant_2_id: participantId || null,
         title: title || `New ${sessionType.replace('-', ' ')} session`,
       };
@@ -100,16 +100,29 @@ export const useMessages = (sessionId: string | null) => {
 
     setLoading(true);
     try {
+      console.log('Fetching messages for session:', sessionId);
       const { data, error } = await supabase
         .from('messages')
         .select('*')
         .eq('session_id', sessionId)
         .order('created_at', { ascending: true });
 
-      if (error) throw error;
-      setMessages(data || []);
+      if (error) {
+        console.error('Error fetching messages:', error);
+        // If the table doesn't exist, just set empty messages
+        if (error.code === '42P01') { // Table doesn't exist
+          console.warn('Messages table does not exist yet');
+          setMessages([]);
+        } else {
+          throw error;
+        }
+      } else {
+        console.log('Messages fetched successfully:', data?.length || 0, 'messages');
+        setMessages(data || []);
+      }
     } catch (error) {
       console.error('Error fetching messages:', error);
+      setMessages([]);
     } finally {
       setLoading(false);
     }
@@ -147,6 +160,10 @@ export const useMessages = (sessionId: string | null) => {
 
       if (error) {
         console.error('Database error inserting message:', error);
+        // If the table doesn't exist, show a helpful error
+        if (error.code === '42P01') { // Table doesn't exist
+          throw new Error('Chat functionality is not available yet. Please contact support.');
+        }
         throw error;
       }
 
@@ -155,7 +172,7 @@ export const useMessages = (sessionId: string | null) => {
       return data;
     } catch (error) {
       console.error('Error sending message:', error);
-      return null;
+      throw error;
     }
   };
 
