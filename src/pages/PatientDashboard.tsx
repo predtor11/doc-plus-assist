@@ -1,9 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Stethoscope, MessageCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { LMStudioInstructions } from '@/components/LMStudioInstructions';
+import { useLMStudio } from '@/hooks/useLMStudio';
+import { AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
 
 interface DoctorInfo {
   id: string;
@@ -15,6 +19,7 @@ const PatientDashboard = () => {
   const { user } = useAuth();
   const [doctorInfo, setDoctorInfo] = useState<DoctorInfo | null>(null);
   const [loading, setLoading] = useState(true);
+  const { status: lmStudioStatus, isChecking: isCheckingLMStudio, checkLMStudioStatus } = useLMStudio();
 
   const recentActivity = [
     { type: 'AI Chat', message: 'Stress relief session completed', time: '2 hours ago', status: 'completed' },
@@ -155,6 +160,59 @@ const PatientDashboard = () => {
           )}
         </div>
       </div>
+
+      {/* LM Studio Setup Status */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            {isCheckingLMStudio ? (
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            ) : lmStudioStatus.isConnected ? (
+              <CheckCircle className="h-5 w-5 text-green-500" />
+            ) : (
+              <AlertCircle className="h-5 w-5 text-orange-500" />
+            )}
+            AI Support Setup
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-medium">
+                  LM Studio Status: {isCheckingLMStudio ? 'Checking...' : lmStudioStatus.isConnected ? 'Connected' : 'Not Connected'}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Required for AI chat support
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={checkLMStudioStatus}
+                disabled={isCheckingLMStudio}
+              >
+                {isCheckingLMStudio ? 'Checking...' : 'Check Status'}
+              </Button>
+            </div>
+
+            {!lmStudioStatus.isConnected && !isCheckingLMStudio && (
+              <LMStudioInstructions
+                onCheckConnection={checkLMStudioStatus}
+                isChecking={isCheckingLMStudio}
+              />
+            )}
+
+            {lmStudioStatus.isConnected && lmStudioStatus.models && lmStudioStatus.models.length > 0 && (
+              <div className="p-3 bg-green-50 border border-green-200 rounded">
+                <p className="text-sm text-green-800">
+                  <strong>✅ Ready to use!</strong> Available models: {lmStudioStatus.models.join(', ')}
+                </p>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Recent Activity */}
       <Card>

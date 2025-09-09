@@ -55,7 +55,17 @@ const PatientRegistration = () => {
     setIsLoading(true);
 
     try {
+      // Debug: Log authentication state
+      console.log('Current user:', user);
+      console.log('User role:', user?.role);
+      console.log('User ID:', user?.user_id);
+      
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      console.log('Session data:', sessionData);
+      console.log('Session error:', sessionError);
+      
       // Check if user exists in doctors table
+      console.log('Checking if user exists in doctors table...');
       const { data: doctorCheck, error: doctorError } = await supabase
         .from('doctors')
         .select('id, user_id, name')
@@ -63,39 +73,63 @@ const PatientRegistration = () => {
         .single();
 
       if (doctorError) {
+        console.error('Doctor check error:', doctorError);
+        console.error('Doctor check error details:', {
+          message: doctorError.message,
+          details: doctorError.details,
+          hint: doctorError.hint,
+          code: doctorError.code
+        });
         throw new Error('User is not registered as a doctor in the system');
       }
 
-      // Create the patient record in the patients table
-      const patientInsertData = {
-        name: `${patientData.firstName} ${patientData.lastName}`.trim(),
-        email: patientData.email,
-        phone: patientData.phone,
-        age: patientData.age ? parseInt(patientData.age) : null,
-        gender: patientData.gender,
-        address: patientData.address,
-        emergency_contact_name: patientData.emergencyContact,
-        emergency_contact_phone: patientData.emergencyPhone,
-        medical_history: patientData.medicalHistory ?
-          `${patientData.medicalHistory}${patientData.symptoms ? `\n\nCurrent Symptoms: ${patientData.symptoms}` : ''}` :
-          patientData.symptoms || null,
-        allergies: patientData.allergies,
-        current_medications: patientData.medications,
-        assigned_doctor_id: user.user_id
-      };
+      console.log('Doctor record found:', doctorCheck);
 
-      const { data: patientRecord, error: patientError } = await supabase
+      // Debug: Log the form data
+      console.log('Patient registration data:', patientData);
+
+      // First, let's check what columns exist in the patients table
+      console.log('Checking patients table schema...');
+      const { data: schemaData, error: schemaError } = await supabase
         .from('patients')
-        .insert(patientInsertData)
-        .select()
-        .single();
+        .select('address, emergency_contact_name, emergency_contact_phone, allergies, current_medications, medical_history')
+        .limit(1);
 
-      if (patientError) {
-        throw patientError;
+      if (schemaError) {
+        console.error('Schema check error:', schemaError);
+        console.error('Schema error details:', {
+          message: schemaError.message,
+          details: schemaError.details,
+          hint: schemaError.hint,
+          code: schemaError.code
+        });
+      } else {
+        console.log('Schema check successful, columns exist');
       }
 
-      // Create a Supabase auth user for the patient
+      // Test basic authenticated operation
+      console.log('Testing authenticated access...');
+      const { data: testData, error: testError } = await supabase
+        .from('patients')
+        .select('count')
+        .limit(1);
+
+      if (testError) {
+        console.error('Authentication test failed:', testError);
+        console.error('Auth test error details:', {
+          message: testError.message,
+          details: testError.details,
+          hint: testError.hint,
+          code: testError.code
+        });
+      } else {
+        console.log('Authentication test successful');
+      }
+
+      // Create a Supabase auth user for the patient FIRST
       const tempPassword = Math.random().toString(36).slice(-12) + 'Temp123!';
+
+      console.log('Creating auth user with email:', patientData.email);
 
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: patientData.email,
@@ -111,20 +145,75 @@ const PatientRegistration = () => {
       });
 
       if (authError) {
-        // If auth creation fails, delete the patient record
-        await supabase.from('patients').delete().eq('id', patientRecord.id);
+        console.error('Auth creation error:', authError);
+        console.error('Auth error details:', {
+          message: authError.message,
+          status: authError.status
+        });
         throw authError;
       }
 
-      // Update patient record with user_id
-      if (authData.user) {
+      console.log('Auth user created successfully:', authData.user?.id);
+
+      // Create the patient record WITHOUT user_id first to avoid foreign key constraint issues
+      console.log('Creating patient record...');
+
+      const patientInsertData = {
+        name: `${patientData.firstName} ${patientData.lastName}`.trim(),
+        email: patientData.email,
+        phone: patientData.phone,
+        age: patientData.age ? parseInt(patientData.age) : null,
+        gender: patientData.gender,
+        address: patientData.address,
+        emergency_contact_name: patientData.emergencyContact,
+        emergency_contact_phone: patientData.emergencyPhone,
+        medical_history: patientData.medicalHistory ?
+          `${patientData.medicalHistory}${patientData.symptoms ? `\n\nCurrent Symptoms: ${patientData.symptoms}` : ''}` :
+          patientData.symptoms || null,
+        allergies: patientData.allergies,
+        current_medications: patientData.medications,
+        assigned_doctor_id: user.user_id
+        // user_id will be added after patient record is created
+      };
+
+      console.log('Patient insert data:', patientInsertData);
+
+      const { data: patientRecord, error: patientError } = await supabase
+        .from('patients')
+        .insert(patientInsertData)
+        .select()
+        .single();
+
+      console.log('Supabase response received');
+      console.log('Patient record:', patientRecord);
+      console.log('Patient error:', patientError);
+
+      if (patientError) {
+        console.error('Patient creation error:', patientError);
+        console.error('Error details:', {
+          message: patientError.message,
+          details: patientError.details,
+          hint: patientError.hint,
+          code: patientError.code
+        });
+        throw patientError;
+      }
+
+      console.log('Patient record created successfully:', patientRecord);
+
+      // Now update the patient record with the user_id
+      if (authData.user && patientRecord?.id) {
+        console.log('Updating patient record with user_id...');
         const { error: updateError } = await supabase
           .from('patients')
           .update({ user_id: authData.user.id })
           .eq('id', patientRecord.id);
 
         if (updateError) {
+          console.error('Patient update error:', updateError);
           console.warn('Patient created successfully but user_id update failed - patient can still log in later');
+        } else {
+          console.log('Patient update successful');
         }
       }
 
@@ -140,9 +229,13 @@ const PatientRegistration = () => {
         });
 
         if (emailError) {
+          console.error('Email sending error:', emailError);
           throw new Error('Failed to send temporary password email');
         }
+
+        console.log('Temporary password email sent successfully');
       } catch (emailError: any) {
+        console.error('Error sending email:', emailError);
         // Don't fail registration if email fails, but show warning
         toast({
           title: "Patient registered with warning",
@@ -175,9 +268,20 @@ const PatientRegistration = () => {
 
       navigate('/patients');
     } catch (error: any) {
+      console.error('Error registering patient:', error);
+      console.error('Error type:', error.constructor.name);
+      console.error('Error stack:', error.stack);
+      
+      let errorMessage = "Failed to register patient";
+      if (error.message === 'Request timeout') {
+        errorMessage = "Request timed out. Please check your internet connection and try again.";
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
       toast({
         title: "Registration failed",
-        description: error.message || "Failed to register patient",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {

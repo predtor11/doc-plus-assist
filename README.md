@@ -59,6 +59,43 @@ This project is built with:
 - React
 - shadcn-ui
 - Tailwind CSS
+- Supabase (Database & Authentication)
+- LM Studio (Local AI Inference)
+
+## LM Studio Setup for AI Chat Features
+
+This application includes AI chat functionality powered by LM Studio. To use AI features, each user must run LM Studio locally on their computer:
+
+### Setup Instructions:
+
+1. **Download LM Studio**: Visit [lmstudio.ai](https://lmstudio.ai) and download the application for your operating system
+
+2. **Download a Model**: 
+   - Open LM Studio
+   - Go to the "My Models" tab
+   - Search for and download a GPT model (GPT-2, GPT-J, or Llama models work well)
+
+3. **Load the Model**:
+   - Go to the "Chat" tab in LM Studio
+   - Select your downloaded model from the dropdown
+   - Click "Load Model"
+
+4. **Start Local Server**:
+   - Go to the "Local Server" tab
+   - Click "Start Server"
+   - Ensure the server is running on `http://127.0.0.1:1234`
+
+5. **Verify Connection**:
+   - In the web application, start an AI chat session
+   - The app will automatically detect your local LM Studio server
+   - Click "Check Status" if needed to verify the connection
+
+### Important Notes:
+
+- **Local Processing**: Each user runs their own LM Studio instance locally for privacy and performance
+- **No Cloud Dependency**: AI responses are generated locally, not sent to external servers
+- **Model Requirements**: Ensure you have enough RAM for the model you choose (4GB+ recommended)
+- **Network**: The web app connects directly to `127.0.0.1:1234` on your local machine
 
 ## How can I deploy this project?
 
