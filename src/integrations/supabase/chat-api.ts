@@ -203,7 +203,7 @@ export class ChatAPI {
   /**
    * Send a message in a chat session
    */
-  static async sendMessage(sessionId: string, content: string, senderId: string): Promise<{ data: Message | null; error: ChatAPIError | null }> {
+  static async sendMessage(sessionId: string, content: string, senderId: string, isAiMessage: boolean = false): Promise<{ data: Message | null; error: ChatAPIError | null }> {
     try {
       // Validate message content
       const validation = this.validateMessageContent(content);
@@ -214,37 +214,71 @@ export class ChatAPI {
         };
       }
 
+      // First, get the session to determine the session type
+      const { data: session, error: sessionError } = await supabase
+        .from('chat_sessions')
+        .select('session_type')
+        .eq('id', sessionId)
+        .single();
+
+      if (sessionError) {
+        console.error('Error fetching session:', sessionError);
+        return {
+          data: null,
+          error: { message: 'Failed to fetch session information', code: sessionError.code }
+        };
+      }
+
+      const isAiSession = session?.session_type?.includes('ai') || false;
+      console.log('ChatAPI.sendMessage - Session type:', session?.session_type, 'Is AI session:', isAiSession, 'Session ID:', sessionId);
+
       const messageData = {
         session_id: sessionId,
         sender_id: senderId,
         content: content.trim(),
+        is_ai_message: isAiMessage,
       };
 
-      // First try the new separate messages table
-      let { data, error } = await (supabase as any)
-        .from('doctor_patient_messages')
-        .insert(messageData)
-        .select()
-        .single();
+      let data, error;
 
-      // If new table doesn't exist, fall back to existing messages table
-      if (error && error.code === '42P01') { // Table doesn't exist
-        console.log('New doctor-patient messages table not found, falling back to existing messages table');
-        const fallbackData = {
-          session_id: sessionId,
-          sender_id: senderId,
-          content: content.trim(),
-          is_ai_message: false,
-        };
-
-        const fallbackResult = await supabase
+      // Use appropriate table based on session type
+      if (isAiSession) {
+        // For AI sessions, use the regular messages table
+        console.log('Using messages table for AI session, sessionId:', sessionId);
+        const result = await supabase
           .from('messages')
-          .insert(fallbackData)
+          .insert(messageData)
           .select()
           .single();
 
-        data = fallbackResult.data;
-        error = fallbackResult.error;
+        data = result.data;
+        error = result.error;
+        console.log('Messages table insert result:', { data: !!data, error: error?.message });
+      } else {
+        // For doctor-patient sessions, try the new separate messages table first
+        console.log('Using doctor_patient_messages table for doctor-patient session, sessionId:', sessionId);
+        let result = await (supabase as any)
+          .from('doctor_patient_messages')
+          .insert(messageData)
+          .select()
+          .single();
+
+        data = result.data;
+        error = result.error;
+        console.log('Doctor-patient messages table insert result:', { data: !!data, error: error?.message });
+
+        // If new table doesn't exist, fall back to existing messages table
+        if (error && error.code === '42P01') { // Table doesn't exist
+          console.log('New doctor-patient messages table not found, falling back to existing messages table');
+          const fallbackResult = await supabase
+            .from('messages')
+            .insert(messageData)
+            .select()
+            .single();
+
+          data = fallbackResult.data;
+          error = fallbackResult.error;
+        }
       }
 
       if (error) {
@@ -270,25 +304,61 @@ export class ChatAPI {
    */
   static async markMessagesAsRead(sessionId: string, userId: string): Promise<{ success: boolean; error: ChatAPIError | null }> {
     try {
-      // First try the new separate messages table
-      let { error } = await (supabase as any)
-        .from('doctor_patient_messages')
-        .update({ is_read: true })
-        .eq('session_id', sessionId)
-        .neq('sender_id', userId)
-        .eq('is_read', false);
+      // First, get the session to determine the session type
+      const { data: session, error: sessionError } = await supabase
+        .from('chat_sessions')
+        .select('session_type')
+        .eq('id', sessionId)
+        .single();
 
-      // If new table doesn't exist, fall back to existing messages table
-      if (error && error.code === '42P01') { // Table doesn't exist
-        console.log('New doctor-patient messages table not found, falling back to existing messages table');
-        const fallbackResult = await supabase
+      if (sessionError) {
+        console.error('Error fetching session for mark as read:', sessionError);
+        return {
+          success: false,
+          error: { message: 'Failed to fetch session information', code: sessionError.code }
+        };
+      }
+
+      const isAiSession = session?.session_type?.includes('ai') || false;
+      console.log('Marking messages as read for session type:', session?.session_type, 'Is AI session:', isAiSession);
+
+      let error;
+
+      if (isAiSession) {
+        // For AI sessions, use the regular messages table
+        console.log('Using messages table for marking as read');
+        const result = await supabase
           .from('messages')
           .update({ is_read: true })
           .eq('session_id', sessionId)
           .neq('sender_id', userId)
           .eq('is_read', false);
 
-        error = fallbackResult.error;
+        error = result.error;
+      } else {
+        // For doctor-patient sessions, try the new separate messages table first
+        console.log('Using doctor_patient_messages table for marking as read');
+        let result = await (supabase as any)
+          .from('doctor_patient_messages')
+          .update({ is_read: true })
+          .eq('session_id', sessionId)
+          .neq('sender_id', userId)
+          .eq('is_read', false);
+
+        error = result.error;
+
+        // If new table doesn't exist, fall back to existing messages table
+        if (error && error.code === '42P01') { // Table doesn't exist
+          console.log('New doctor-patient messages table not found, falling back to existing messages table');
+          const fallbackResult = await supabase
+            .from('messages')
+            .update({ is_read: true })
+            .eq('session_id', sessionId)
+            .neq('sender_id', userId)
+            .eq('is_read', false);
+
+          error = fallbackResult.error;
+        }
       }
 
       if (error) {

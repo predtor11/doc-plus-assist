@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import type { Database } from '@/integrations/supabase/types';
@@ -95,7 +95,7 @@ export const useMessages = (sessionId: string | null) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const fetchMessages = async () => {
+  const fetchMessages = useCallback(async () => {
     if (!sessionId) return;
 
     setLoading(true);
@@ -126,7 +126,7 @@ export const useMessages = (sessionId: string | null) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [sessionId]);
 
   const sendMessage = async (content: string, isAiMessage = false) => {
     if (!sessionId) {

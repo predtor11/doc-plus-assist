@@ -25,19 +25,21 @@ export default defineConfig(({ mode }) => ({
           });
         },
       },
-      '/api/lm-studio': {
-        target: 'http://127.0.0.1:1234',
+      '/api/openrouter': {
+        target: 'https://openrouter.ai',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api\/lm-studio/, ''),
+        rewrite: (path) => path.replace(/^\/api\/openrouter/, '/api/v1'),
         configure: (proxy, options) => {
           proxy.on('error', (err, req, res) => {
-            console.log('LM Studio proxy error', err);
+            console.log('OpenRouter proxy error', err);
           });
           proxy.on('proxyReq', (proxyReq, req, res) => {
-            console.log('Sending Request to LM Studio:', req.method, req.url);
+            console.log('Sending Request to OpenRouter:', req.method, req.url);
+            // Authorization header is now sent from client side
+            proxyReq.setHeader('Content-Type', 'application/json');
           });
           proxy.on('proxyRes', (proxyRes, req, res) => {
-            console.log('Received Response from LM Studio:', proxyRes.statusCode, req.url);
+            console.log('Received Response from OpenRouter:', proxyRes.statusCode, req.url);
           });
         },
       }
