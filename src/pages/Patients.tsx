@@ -328,27 +328,65 @@ const Patients = () => {
   };
 
   return (
-    <div className="h-screen flex bg-background">
+    <div className="h-screen flex bg-background overflow-hidden">
       {/* Sidebar */}
-      <div className={`border-r bg-card transition-all duration-300 ${sidebarCollapsed ? 'w-16' : 'w-80'}`}>
-        <div className="p-4 border-b">
-          <div className="flex items-center justify-between mb-2">
-            {!sidebarCollapsed && (
-              <h2 className="font-semibold text-card-foreground">My Patients</h2>
-            )}
-            <Button
-              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-              size="sm"
-              variant="ghost"
-              className="h-8 w-8 p-0"
-            >
-              <MessageCircle className="h-4 w-4" />
-            </Button>
-          </div>
-          {!sidebarCollapsed && (
-            <>
+      <div className={`border-r bg-card/95 backdrop-blur-sm transition-all duration-300 ease-in-out shadow-sm flex flex-col ${sidebarCollapsed ? 'w-16' : 'w-80'}`}>
+        {/* Fixed Sidebar Header */}
+        <div className="flex-shrink-0">
+          {sidebarCollapsed ? (
+            <div className="flex flex-col items-center py-4 space-y-4">
+              <div className="bg-gradient-to-br from-primary/20 to-primary/10 rounded-full w-10 h-10 flex items-center justify-center">
+                <Stethoscope className="h-5 w-5 text-primary" />
+              </div>
+              <div className="flex flex-col items-center space-y-2">
+                <Button
+                  onClick={() => navigate('/register-patient')}
+                  size="sm"
+                  variant="ghost"
+                  className="h-10 w-10 p-0 hover:bg-accent transition-colors duration-200 rounded-full"
+                  title="Add Patient"
+                >
+                  <User className="h-5 w-5" />
+                </Button>
+                <Button
+                  onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                  size="sm"
+                  variant="ghost"
+                  className="h-10 w-10 p-0 hover:bg-accent transition-colors duration-200 rounded-full"
+                  title="Expand Sidebar"
+                >
+                  <MessageCircle className="h-5 w-5 rotate-180" />
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="p-4 border-b bg-card/50 backdrop-blur-sm">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center space-x-2">
+                  <Stethoscope className="h-5 w-5 text-primary" />
+                  <h2 className="font-semibold text-card-foreground">My Patients</h2>
+                </div>
+                <div className="flex items-center space-x-1">
+                  <Button
+                    onClick={() => navigate('/register-patient')}
+                    size="sm"
+                    className="h-8 px-3 bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm transition-all duration-200 hover:shadow-md"
+                  >
+                    <User className="h-3.5 w-3.5 mr-1.5" />
+                    Add Patient
+                  </Button>
+                  <Button
+                    onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                    size="sm"
+                    variant="ghost"
+                    className="h-8 w-8 p-0 hover:bg-accent transition-colors duration-200"
+                  >
+                    <MessageCircle className={`h-4 w-4 transition-transform duration-200 ${sidebarCollapsed ? 'rotate-180' : ''}`} />
+                  </Button>
+                </div>
+              </div>
               <p className="text-xs text-muted-foreground mb-4">
-                Select a patient to start chatting
+                Manage your patients and start conversations
               </p>
               {/* Search */}
               <div className="relative">
@@ -357,116 +395,194 @@ const Patients = () => {
                   placeholder="Search patients..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 h-9"
+                  className="pl-10 h-9 bg-background/50 border-border/50 focus:border-primary/50 transition-colors duration-200"
                 />
               </div>
-            </>
+            </div>
           )}
         </div>
 
-        <ScrollArea className="flex-1">
-          <div className="p-4 space-y-2">
-            {loading ? (
-              <div className="space-y-3">
-                {[...Array(5)].map((_, i) => (
-                  <div key={i} className="h-16 bg-muted animate-pulse rounded"></div>
-                ))}
-              </div>
-            ) : filteredPatients.length === 0 ? (
-              <div className="text-center py-8">
-                <User className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-sm text-muted-foreground mb-2">No patients found</p>
-                {!searchTerm && (
-                  <Button onClick={() => navigate('/register-patient')} size="sm">
-                    Register Patient
-                  </Button>
-                )}
-              </div>
-            ) : (
-              filteredPatients.map((patient) => (
-                <Card
-                  key={patient.id}
-                  className={`cursor-pointer transition-all hover:shadow-sm ${
-                    selectedPatient?.id === patient.id
-                      ? 'ring-2 ring-primary bg-accent/50'
-                      : 'hover:bg-accent/20'
-                  }`}
-                  onClick={() => handlePatientSelect(patient)}
-                >
-                  <CardContent className="p-3">
-                    <div className="flex items-center space-x-3">
-                      <Avatar className="h-10 w-10">
-                        <AvatarFallback className="bg-primary text-primary-foreground text-sm">
-                          {getInitials(patient.name)}
-                        </AvatarFallback>
-                      </Avatar>
-                      {!sidebarCollapsed && (
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <h3 className="font-medium text-sm truncate">{patient.name}</h3>
-                              <p className="text-xs text-muted-foreground">
-                                Age: {patient.age || 'N/A'}
-                              </p>
+        {/* Scrollable Patient List */}
+        <div className="flex-1 min-h-0">
+          <ScrollArea className="h-full w-full">
+            <div className="p-4 space-y-3">
+              {loading ? (
+                <div className="space-y-3">
+                  {[...Array(5)].map((_, i) => (
+                    <div key={i} className="h-16 bg-gradient-to-r from-muted/50 to-muted/30 animate-pulse rounded-lg border border-border/30"></div>
+                  ))}
+                </div>
+              ) : filteredPatients.length === 0 ? (
+                <div className="text-center py-12 px-4">
+                  <div className="bg-gradient-to-br from-muted/30 to-muted/10 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
+                    <User className="h-8 w-8 text-muted-foreground" />
+                  </div>
+                  <p className="text-sm font-medium text-card-foreground mb-2">
+                    {searchTerm ? 'No patients found' : 'No patients yet'}
+                  </p>
+                  <p className="text-xs text-muted-foreground mb-4">
+                    {searchTerm ? 'Try adjusting your search' : 'Start by registering your first patient'}
+                  </p>
+                  {!searchTerm && (
+                    <Button
+                      onClick={() => navigate('/register-patient')}
+                      size="sm"
+                      className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm transition-all duration-200 hover:shadow-md"
+                    >
+                      <User className="h-3.5 w-3.5 mr-1.5" />
+                      Register Patient
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {filteredPatients.map((patient, index) => (
+                    <Card
+                      key={patient.id}
+                      className={`cursor-pointer transition-all duration-200 hover:shadow-md hover:scale-[1.02] border-border/50 hover:border-primary/30 animate-in slide-in-from-left-2 ${
+                        selectedPatient?.id === patient.id
+                          ? 'ring-2 ring-primary bg-accent/50 shadow-md scale-[1.01]'
+                          : 'hover:bg-accent/20'
+                      }`}
+                      style={{ animationDelay: `${index * 50}ms` }}
+                      onClick={() => handlePatientSelect(patient)}
+                    >
+                      <CardContent className="p-3">
+                        <div className="flex items-center space-x-3">
+                          <Avatar className="h-10 w-10 ring-2 ring-background shadow-sm">
+                            <AvatarFallback className="bg-gradient-to-br from-primary/20 to-primary/40 text-primary font-medium text-sm">
+                              {getInitials(patient.name)}
+                            </AvatarFallback>
+                          </Avatar>
+                          {!sidebarCollapsed && (
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between">
+                                <div className="min-w-0 flex-1">
+                                  <h3 className="font-medium text-sm truncate text-card-foreground">{patient.name}</h3>
+                                  <p className="text-xs text-muted-foreground">
+                                    Age: {patient.age || 'N/A'}
+                                  </p>
+                                </div>
+                                <div className="flex items-center space-x-2 ml-2">
+                                  {unreadCounts[patient.id] > 0 && (
+                                    <Badge
+                                      variant="destructive"
+                                      className="text-xs px-1.5 py-0.5 animate-pulse shadow-sm"
+                                    >
+                                      {unreadCounts[patient.id]}
+                                    </Badge>
+                                  )}
+                                  <Badge
+                                    variant="secondary"
+                                    className="text-xs px-1.5 py-0.5 bg-success/20 text-success border-success/30"
+                                  >
+                                    Active
+                                  </Badge>
+                                </div>
+                              </div>
                             </div>
-                            {unreadCounts[patient.id] > 0 && (
-                              <Badge
-                                variant="destructive"
-                                className="text-xs px-1.5 py-0.5 ml-2"
-                              >
-                                {unreadCounts[patient.id]}
-                              </Badge>
-                            )}
-                          </div>
+                          )}
+                          {sidebarCollapsed && unreadCounts[patient.id] > 0 && (
+                            <Badge
+                              variant="destructive"
+                              className="text-xs px-1.5 py-0.5 absolute -top-1 -right-1 animate-pulse shadow-sm"
+                            >
+                              {unreadCounts[patient.id]}
+                            </Badge>
+                          )}
                         </div>
-                      )}
-                      {sidebarCollapsed && unreadCounts[patient.id] > 0 && (
-                        <Badge
-                          variant="destructive"
-                          className="text-xs px-1.5 py-0.5 absolute -top-1 -right-1"
-                        >
-                          {unreadCounts[patient.id]}
-                        </Badge>
-                      )}
-                      <Badge
-                        variant="secondary"
-                        className="text-xs px-1.5 py-0.5 bg-success/20 text-success"
-                      >
-                        Active
-                      </Badge>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
-            )}
-          </div>
-        </ScrollArea>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+          </ScrollArea>
+        </div>
       </div>
 
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-w-0">
         {selectedPatient ? (
-          <DoctorPatientChatWindow
-            session={currentSession}
-            onSessionUpdate={() => {
-              // Refresh unread counts when session updates
-              fetchUnreadCounts();
-            }}
-          />
+          <div className="flex-1 flex flex-col">
+            {/* Fixed Chat Header */}
+            <div className="flex-shrink-0 p-4 border-b bg-card/50 backdrop-blur-sm">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <Avatar className="h-10 w-10 ring-2 ring-background shadow-sm">
+                    <AvatarFallback className="bg-gradient-to-br from-primary/20 to-primary/40 text-primary font-medium text-sm">
+                      {getInitials(selectedPatient.name)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <h3 className="font-semibold text-card-foreground">{selectedPatient.name}</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Age: {selectedPatient.age || 'N/A'} • {selectedPatient.email || 'No email'}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Badge
+                    variant="secondary"
+                    className="bg-success/20 text-success border-success/30"
+                  >
+                    Active
+                  </Badge>
+                  {unreadCounts[selectedPatient.id] > 0 && (
+                    <Badge
+                      variant="destructive"
+                      className="animate-pulse"
+                    >
+                      {unreadCounts[selectedPatient.id]} unread
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Scrollable Chat Content */}
+            <div className="flex-1 min-h-0">
+              <DoctorPatientChatWindow
+                session={currentSession}
+                onSessionUpdate={() => {
+                  // Refresh unread counts when session updates
+                  fetchUnreadCounts();
+                }}
+              />
+            </div>
+          </div>
         ) : (
-          <div className="flex-1 flex items-center justify-center bg-background">
-            <div className="text-center max-w-md">
-              <Stethoscope className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-muted-foreground mb-2">
+          <div className="flex-1 flex items-center justify-center bg-gradient-to-br from-background via-background to-muted/20 relative overflow-hidden">
+            {/* Background Pattern */}
+            <div className="absolute inset-0 opacity-5">
+              <div className="absolute inset-0" style={{
+                backgroundImage: `radial-gradient(circle at 25% 25%, hsl(var(--primary)) 2px, transparent 2px),
+                                 radial-gradient(circle at 75% 75%, hsl(var(--primary)) 2px, transparent 2px)`,
+                backgroundSize: '40px 40px'
+              }} />
+            </div>
+            <div className="text-center max-w-md px-6 relative z-10">
+              <div className="bg-gradient-to-br from-primary/10 to-primary/5 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-6 shadow-lg animate-in zoom-in-50 duration-500">
+                <Stethoscope className="h-10 w-10 text-primary" />
+              </div>
+              <h3 className="text-xl font-semibold text-card-foreground mb-3 animate-in slide-in-from-bottom-4 duration-500 delay-100">
                 Select a Patient
               </h3>
-              <p className="text-sm text-muted-foreground mb-6">
-                Choose a patient from the sidebar to start a conversation and provide care.
+              <p className="text-sm text-muted-foreground mb-8 leading-relaxed animate-in slide-in-from-bottom-4 duration-500 delay-200">
+                Choose a patient from the sidebar to start a conversation and provide personalized care.
               </p>
-              <Button onClick={() => navigate('/register-patient')} className="bg-primary hover:bg-primary-hover">
-                <User className="h-4 w-4 mr-2" />
-                Register New Patient
-              </Button>
+              <div className="space-y-3 animate-in slide-in-from-bottom-4 duration-500 delay-300">
+                <Button
+                  onClick={() => navigate('/register-patient')}
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm transition-all duration-200 hover:shadow-md hover:scale-105 w-full"
+                >
+                  <User className="h-4 w-4 mr-2" />
+                  Register New Patient
+                </Button>
+                <p className="text-xs text-muted-foreground">
+                  Or select an existing patient to continue care
+                </p>
+              </div>
             </div>
           </div>
         )}

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import type { Database } from '@/integrations/supabase/types';
@@ -18,7 +18,7 @@ export const useChatSessions = (sessionType?: string) => {
       let query = supabase
         .from('chat_sessions')
         .select('*')
-        .or(`participant_1_id.eq.${user.user_id},participant_2_id.eq.${user.user_id}`)
+        .or(`participant_1_id.eq.${user.id},participant_2_id.eq.${user.id}`) // Use auth user ID
         .order('last_message_at', { ascending: false });
 
       if (sessionType) {
@@ -42,7 +42,7 @@ export const useChatSessions = (sessionType?: string) => {
     try {
       const sessionData = {
         session_type: sessionType,
-        participant_1_id: user.user_id,
+        participant_1_id: user.id, // Use auth user ID
         participant_2_id: participantId || null,
         title: title || `New ${sessionType.replace('-', ' ')} session`,
       };
@@ -95,15 +95,12 @@ export const useMessages = (sessionId: string | null) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const fetchMessages = async () => {
-    if (!sessionId) {
-      console.log('fetchMessages: No sessionId provided');
-      return;
-    }
+  const fetchMessages = useCallback(async () => {
+    if (!sessionId) return;
 
-    console.log('fetchMessages: Fetching messages for session:', sessionId);
     setLoading(true);
     try {
+      console.log('Fetching messages for session:', sessionId);
       const { data, error } = await supabase
         .from('messages')
         .select('*')
@@ -111,80 +108,49 @@ export const useMessages = (sessionId: string | null) => {
         .order('created_at', { ascending: true });
 
       if (error) {
-        console.error('fetchMessages: Error fetching messages:', error);
-        throw error;
+        console.error('Error fetching messages:', error);
+        // If the table doesn't exist, just set empty messages
+        if (error.code === '42P01') { // Table doesn't exist
+          console.warn('Messages table does not exist yet');
+          setMessages([]);
+        } else {
+          throw error;
+        }
+      } else {
+        console.log('Messages fetched successfully:', data?.length || 0, 'messages');
+        setMessages(data || []);
       }
-      
-      console.log('fetchMessages: Retrieved', data?.length || 0, 'messages from database');
-      setMessages(data || []);
     } catch (error) {
-      console.error('fetchMessages: Error fetching messages:', error);
+      console.error('Error fetching messages:', error);
+      setMessages([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [sessionId]);
 
-  const sendMessage = async (content: string, isAiMessage = false, onSuccess?: () => void) => {
+  const sendMessage = async (content: string, isAiMessage = false) => {
     if (!sessionId) {
       console.error('No sessionId provided to sendMessage');
       return null;
     }
 
-    console.log('sendMessage called with:', { 
-      content: content.substring(0, 100) + '...', 
-      isAiMessage, 
-      sessionId,
-      contentLength: content.length,
-      hasContent: !!content
-    });
+    console.log('sendMessage called with:', { content, isAiMessage, sessionId });
 
-    // Verify session exists
     try {
-      const { data: sessionData, error: sessionError } = await supabase
-        .from('chat_sessions')
-        .select('id')
-        .eq('id', sessionId)
-        .single();
-
-      if (sessionError || !sessionData) {
-        console.error('Session validation failed:', { sessionError, sessionData, sessionId });
+      const { data: { user } } = await supabase.auth.getUser();
+      console.log('Auth user:', user);
+      if (!user) {
+        console.error('No authenticated user found');
         return null;
-      }
-      console.log('Session validated successfully');
-    } catch (sessionCheckError) {
-      console.error('Error validating session:', sessionCheckError);
-      return null;
-    }
-
-    try {
-      let userId = null;
-      
-      if (!isAiMessage) {
-        // Only get authenticated user for non-AI messages
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
-        console.log('Auth user result:', { user: user?.id, error: authError });
-        if (authError) {
-          console.error('Auth error:', authError);
-          return null;
-        }
-        if (!user) {
-          console.error('No authenticated user found');
-          return null;
-        }
-        userId = user.id;
       }
 
       const messageData = {
         session_id: sessionId,
-        sender_id: userId, // null for AI messages, user.id for regular messages
+        sender_id: user.id,
         content,
         is_ai_message: isAiMessage,
       };
       console.log('Inserting message data:', messageData);
-      console.log('Message content length:', content.length);
-      console.log('Is AI message:', isAiMessage);
-      console.log('User ID:', userId);
-      console.log('Session ID:', sessionId);
 
       const { data, error } = await supabase
         .from('messages')
@@ -193,93 +159,35 @@ export const useMessages = (sessionId: string | null) => {
         .single();
 
       if (error) {
-        console.error('❌ Database error inserting message:', {
-          error,
-          messageData,
-          code: error.code,
-          details: error.details,
-          hint: error.hint,
-          message: error.message
-        });
-        
-        // Check for specific RLS policy errors
-        if (error.code === '42501' || error.message?.includes('policy')) {
-          console.error('🔒 RLS Policy Error: This might be due to missing or incorrect row-level security policies');
-          console.error('💡 Suggested fix: Check if the messages RLS policy allows AI messages (sender_id = null)');
+        console.error('Database error inserting message:', error);
+        // If the table doesn't exist, show a helpful error
+        if (error.code === '42P01') { // Table doesn't exist
+          throw new Error('Chat functionality is not available yet. Please contact support.');
         }
-        
         throw error;
       }
 
-      console.log('✅ Message inserted successfully:', data);
-      console.log('Message details:', {
-        id: data.id,
-        is_ai_message: data.is_ai_message,
-        sender_id: data.sender_id,
-        content_length: data.content.length,
-        session_id: data.session_id
-      });
-      
-      setMessages(prev => {
-        console.log('📝 IMMEDIATE STATE UPDATE - Updating messages state, previous count:', prev.length);
-        
-        // Check if this message already exists to prevent duplicates
-        const messageExists = prev.some(msg => msg.id === data.id);
-        if (messageExists) {
-          console.log('⚠️ Message already exists in state, skipping duplicate');
-          return prev;
-        }
-        
-        const newMessages = [...prev, data];
-        console.log('📝 IMMEDIATE STATE UPDATE - New messages count:', newMessages.length);
-        console.log('📝 IMMEDIATE STATE UPDATE - Adding message:', {
-          id: data.id,
-          is_ai: data.is_ai_message,
-          sender: data.sender_id,
-          preview: data.content.substring(0, 50) + '...'
-        });
-        
-        // Force re-render by returning new array reference
-        const finalMessages = [...newMessages];
-        
-        // Call success callback if provided
-        if (onSuccess) {
-          setTimeout(() => onSuccess(), 50);
-        }
-        
-        return finalMessages;
-      });
+      console.log('Message inserted successfully:', data);
+      setMessages(prev => [...prev, data]);
       return data;
     } catch (error) {
       console.error('Error sending message:', error);
-      return null;
+      throw error;
     }
   };
 
   useEffect(() => {
-    console.log('useMessages useEffect triggered, sessionId:', sessionId);
     if (sessionId) {
-      console.log('Fetching initial messages for session:', sessionId);
       fetchMessages();
     } else {
-      console.log('No sessionId, clearing messages');
       setMessages([]);
     }
   }, [sessionId]);
-
-  // Disable automatic refetching to prevent state override
-  // Only fetch messages on initial load or manual refresh
-  const refreshMessages = () => {
-    if (sessionId) {
-      fetchMessages();
-    }
-  };
 
   return {
     messages,
     loading,
     sendMessage,
     fetchMessages,
-    refreshMessages,
   };
 };

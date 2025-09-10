@@ -24,6 +24,24 @@ export default defineConfig(({ mode }) => ({
             console.log('Received Response from Supabase:', proxyRes.statusCode, req.url);
           });
         },
+      },
+      '/api/openrouter': {
+        target: 'https://openrouter.ai',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/openrouter/, '/api/v1'),
+        configure: (proxy, options) => {
+          proxy.on('error', (err, req, res) => {
+            console.log('OpenRouter proxy error', err);
+          });
+          proxy.on('proxyReq', (proxyReq, req, res) => {
+            console.log('Sending Request to OpenRouter:', req.method, req.url);
+            // Authorization header is now sent from client side
+            proxyReq.setHeader('Content-Type', 'application/json');
+          });
+          proxy.on('proxyRes', (proxyRes, req, res) => {
+            console.log('Received Response from OpenRouter:', proxyRes.statusCode, req.url);
+          });
+        },
       }
     }
   },
